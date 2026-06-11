@@ -39,7 +39,7 @@ st.markdown("""
         background: #fafafa;
         border: 1px solid #ebebeb;
         border-radius: 12px;
-        padding: 20px 24px;
+        padding: 20px 20px;
         margin-bottom: 18px;
     }
     .pm-card-title {
@@ -48,7 +48,7 @@ st.markdown("""
         text-transform: uppercase;
         letter-spacing: 1.2px;
         color: #e8336d;
-        margin-bottom: 14px;
+        margin-bottom: 0px;
     }
 
     .pm-warn {
