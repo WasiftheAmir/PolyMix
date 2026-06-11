@@ -1,6 +1,6 @@
 # PolyMix — Batch Recipe Calculator
 
-ACI Premio Plastics internal tool for factory-floor recipe mixing.
+Internal tool for factory-floor recipe mixing.
 
 ## What it does
 - Search WIP parts by **Accessories Name** or **Accessories Code**
