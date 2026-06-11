@@ -11,7 +11,7 @@ st.set_page_config(
     layout="centered",
 )
 
-# ── Styling (Optimized for Zero-Scroll) ───────────────────────────────────────
+# ── Styling (Optimized for Zero-Scroll with Guidance text) ────────────────────
 st.markdown("""
 <style>
     html, body, [data-testid="stAppViewContainer"] {
@@ -22,7 +22,7 @@ st.markdown("""
     [data-testid="stHeader"] { background: transparent; }
     [data-testid="stSidebar"] { display: none; }
     [data-testid="block-container"] {
-        padding-top: 1.5rem !important;
+        padding-top: 1.2rem !important;
         padding-bottom: 1rem !important;
     }
 
@@ -36,14 +36,14 @@ st.markdown("""
         font-size: 0.85rem;
         color: #999;
         margin-top: 1px;
-        margin-bottom: 14px;
+        margin-bottom: 12px;
     }
 
     .pm-card {
         background: #fafafa;
         border: 1px solid #ebebeb;
         border-radius: 12px;
-        padding: 14px 16px;
+        padding: 12px 16px;
         margin-bottom: 10px;
     }
     .pm-card-title {
@@ -52,7 +52,17 @@ st.markdown("""
         text-transform: uppercase;
         letter-spacing: 1.2px;
         color: #e8336d;
-        margin-bottom: 8px;
+        margin-bottom: 2px;
+    }
+    .pm-card-guidance {
+        font-size: 0.78rem;
+        color: #666;
+        margin-bottom: 10px;
+        line-height: 1.3;
+    }
+    .pm-card-example {
+        color: #999;
+        font-style: italic;
     }
 
     .pm-warn {
@@ -247,7 +257,12 @@ with st.spinner("Loading masterfile..."):
         st.stop()
 
 # ── STEP 1 & 2: Search & Configuration (Combined) ────────────────────────────
-st.markdown('<div class="pm-card"><div class="pm-card-title">Setup Batch</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="pm-card">'
+    '<div class="pm-card-title">Setup Batch</div>'
+    '<div class="pm-card-guidance">Search the component masterfile by text or code, then assign your total batch target weight. <span class="pm-card-example">(e.g., Gold WD Frame 5D or 3108000537)</span></div>',
+    unsafe_allow_html=True
+)
 
 col1, col2 = st.columns([1, 1])
 
@@ -291,7 +306,6 @@ if search_term.strip():
                 list(options.keys()),
                 label_visibility="collapsed"
             )
-            # Directly use the accessory entry without pushing a secondary part dropdown
             final_row = options[selected_label]
             st.session_state.selected_row = final_row
             
@@ -319,9 +333,14 @@ st.markdown('</div>', unsafe_allow_html=True)
 if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
     row = st.session_state.selected_row
 
-    st.markdown('<div class="pm-card"><div class="pm-card-title">Recipe Breakdown & Logging</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="pm-card">'
+        '<div class="pm-card-title">Recipe Breakdown & Logging</div>'
+        '<div class="pm-card-guidance">Weigh ingredients precisely as shown below. Verify totals before recording the run. <span class="pm-card-example">(e.g., Ensure Total Weight matches target batch size)</span></div>',
+        unsafe_allow_html=True
+    )
 
-    # Building Transposed Structure: Ingredients on Top Row, Metrics on First Column
+    # Building Transposed Structure
     columns = ["Metric"]
     pct_row = ["%"]
     kg_row = ["Amount (kg)"]
@@ -379,10 +398,4 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
                 except Exception as e:
                     st.error(f"Failed to log batch: {e}")
         else:
-            ts = datetime.now().strftime("%H:%M")
-            st.markdown(f'<div class="pm-success" style="padding: 8px 12px;">✓ Batch logged successfully · {ts}</div>', unsafe_allow_html=True)
-            if st.button("Start New Batch"):
-                st.session_state.batch_confirmed = False
-                st.rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True)
+            ts
