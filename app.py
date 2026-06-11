@@ -81,7 +81,8 @@ st.markdown("""
         display: flex;
         justify-content: space-between;
         align-items: center;
-        height: 50px; /* Matched height */
+        height: 50px;
+        width: 100%; /* Force full container width */
         box-sizing: border-box;
     }
     .summary-strip-label { font-size: 0.72rem; color: rgba(255,255,255,0.85); line-height: 1.1; }
@@ -98,7 +99,9 @@ st.markdown("""
         display: flex;
         align-items: center;
         justify-content: center;
-        height: 50px; /* Matched height */
+        height: 50px;
+        width: 100%; /* Force full container width */
+        box-sizing: border-box;
     }
 
     [data-testid="stTextInput"] input,
@@ -117,19 +120,19 @@ st.markdown("""
     /* Core Action Button Overrides */
     .stButton > button {
         background: #e8336d !important;
-        color: #ffffff !important; /* Force font color to white */
+        color: #ffffff !important;
         font-weight: 700 !important;
         border: none !important;
         border-radius: 8px !important;
         font-size: 0.9rem !important;
-        width: 100%;
-        height: 50px !important; /* Matched height */
+        width: 100% !important; /* Ensure the button element fills its parent */
+        height: 50px !important;
         line-height: 50px !important;
         padding: 0 !important; 
         transition: opacity 0.15s;
     }
     .stButton > button p {
-        color: #ffffff !important; /* Secondary safeguard for button label element */
+        color: #ffffff !important;
     }
     .stButton > button:hover { opacity: 0.88 !important; }
     .stButton > button:disabled { opacity: 0.4 !important; }
@@ -413,9 +416,8 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
 
     with bot_col2:
         if not st.session_state.batch_confirmed:
-            st.button("✓ Confirm & Log Batch")
-            # Logic branch checking for execution from the baseline frame click loop
-            if st.session_state.get('search_input') and st.button("✓ Confirm & Log Batch", key="action_log_trigger"):
+            # use_container_width added here
+            if st.button("✓ Confirm & Log Batch", key="action_log_trigger", use_container_width=True):
                 try:
                     log_batch(row, batch_kg, ingredient_kgs)
                     st.session_state.batch_confirmed = True
@@ -425,7 +427,8 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
         else:
             ts = datetime.now().strftime("%H:%M")
             st.markdown(f'<div class="pm-success">✓ Batch logged successfully · {ts}</div>', unsafe_allow_html=True)
-            if st.button("Start New Batch"):
+            # use_container_width added here
+            if st.button("Start New Batch", use_container_width=True):
                 st.session_state.batch_confirmed = False
                 st.rerun()
 
