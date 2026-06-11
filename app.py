@@ -112,8 +112,53 @@ st.markdown("""
     .stButton > button:hover { opacity: 0.88 !important; }
     .stButton > button:disabled { opacity: 0.4 !important; }
 
-    [data-testid="stRadio"] label,
-    [data-testid="stSelectbox"] label { color: #555 !important; font-size: 0.88rem; }
+    /* Radio buttons — label text and option text */
+    [data-testid="stRadio"] label { color: #1a1a1a !important; font-size: 0.88rem; }
+    [data-testid="stRadio"] p { color: #1a1a1a !important; }
+
+    /* All widget labels (number input, text input descriptions) */
+    [data-testid="stWidgetLabel"] p { color: #1a1a1a !important; }
+    label[data-testid="stWidgetLabel"] { color: #1a1a1a !important; }
+
+    /* General paragraph and markdown text */
+    [data-testid="stMarkdownContainer"] p { color: #1a1a1a !important; }
+
+    /* Selectbox — white background, dark text */
+    [data-testid="stSelectbox"] > div > div {
+        background-color: #ffffff !important;
+        border: 1px solid #ddd !important;
+        color: #1a1a1a !important;
+        border-radius: 8px !important;
+    }
+    [data-testid="stSelectbox"] svg { fill: #1a1a1a !important; }
+    [data-testid="stSelectbox"] span { color: #1a1a1a !important; }
+
+    /* Selectbox dropdown list */
+    [data-baseweb="popover"] ul {
+        background-color: #ffffff !important;
+    }
+    [data-baseweb="popover"] li {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    [data-baseweb="popover"] li:hover {
+        background-color: #fce7ef !important;
+    }
+
+    /* Number input +/- buttons */
+    [data-testid="stNumberInput"] button {
+        background: #f0f0f0 !important;
+        color: #1a1a1a !important;
+        border: 1px solid #ddd !important;
+    }
+
+    /* Main block background */
+    [data-testid="block-container"] {
+        background-color: #ffffff !important;
+    }
+    section[data-testid="stMain"] {
+        background-color: #ffffff !important;
+    }
 
     /* Style the dataframe to match */
     [data-testid="stDataFrame"] {
