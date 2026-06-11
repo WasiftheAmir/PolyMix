@@ -133,7 +133,7 @@ st.markdown("""
     }
     .stButton > button p {
         color: #ffffff !important;
-        font-size: 2rem !important;
+        font-size: 0.9rem !important;
         font-weight: bold !important;
     }
     .stButton > button:hover { opacity: 0.88 !important; }
