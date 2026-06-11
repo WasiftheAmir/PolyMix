@@ -17,8 +17,8 @@ st.markdown("""
 <style>
     /* Base */
     html, body, [data-testid="stAppViewContainer"] {
-        background-color: #ffffff;
-        color: #1a1a1a;
+        background-color: #0d0d0d;
+        color: #f0f0f0;
         font-family: 'Segoe UI', sans-serif;
     }
     [data-testid="stHeader"] { background: transparent; }
@@ -41,8 +41,8 @@ st.markdown("""
 
     /* Cards */
     .pm-card {
-        background: #f9f9f9;
-        border: 1px solid #e8e8e8;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
         border-radius: 12px;
         padding: 20px 24px;
         margin-bottom: 18px;
@@ -58,8 +58,8 @@ st.markdown("""
 
     /* Part result rows */
     .part-row {
-        background: #ffffff;
-        border: 1px solid #e0e0e0;
+        background: #1e1e1e;
+        border: 1px solid #2e2e2e;
         border-radius: 8px;
         padding: 12px 16px;
         margin-bottom: 8px;
@@ -84,11 +84,11 @@ st.markdown("""
     .ing-table td {
         padding: 8px 10px;
         font-size: 0.9rem;
-        border-bottom: 1px solid #f0f0f0;
+        border-bottom: 1px solid #1e1e1e;
     }
     .ing-table tr:last-child td { border-bottom: none; }
-    .ing-name { color: #333333; font-weight: 500; }
-    .ing-pct { color: #999; font-size: 0.8rem; }
+    .ing-name { color: #d0d0d0; font-weight: 500; }
+    .ing-pct { color: #888; font-size: 0.8rem; }
     .ing-kg { color: #e8336d; font-weight: 700; font-size: 1rem; }
 
     /* Summary strip */
@@ -117,9 +117,9 @@ st.markdown("""
     /* Input overrides */
     [data-testid="stTextInput"] input,
     [data-testid="stNumberInput"] input {
-        background: #ffffff !important;
-        border: 1px solid #ddd !important;
-        color: #1a1a1a !important;
+        background: #1a1a1a !important;
+        border: 1px solid #333 !important;
+        color: #f0f0f0 !important;
         border-radius: 8px !important;
     }
     [data-testid="stTextInput"] input:focus,
@@ -156,11 +156,11 @@ st.markdown("""
     }
 
     /* Divider */
-    hr { border-color: #e8e8e8; margin: 20px 0; }
+    hr { border-color: #2a2a2a; margin: 20px 0; }
 
     /* Radio / selectbox fix */
     [data-testid="stRadio"] label,
-    [data-testid="stSelectbox"] label { color: #555 !important; font-size: 0.88rem; }
+    [data-testid="stSelectbox"] label { color: #ccc !important; font-size: 0.88rem; }
 
     /* Hide streamlit branding */
     #MainMenu, footer { visibility: hidden; }
@@ -253,7 +253,7 @@ for key, default in [
         st.session_state[key] = default
 
 # ── Header ────────────────────────────────────────────────────────────────────
-st.markdown('<div class="pm-title"><span style="color:#e8336d;">Poly</span><span style="color:#1a1a1a;">Mix</span></div>', unsafe_allow_html=True)
+st.markdown('<div class="pm-title">PolyMix</div>', unsafe_allow_html=True)
 st.markdown('<div class="pm-subtitle">ACI Premio Plastics · Batch Recipe Calculator</div>', unsafe_allow_html=True)
 
 # ── Load data ─────────────────────────────────────────────────────────────────
