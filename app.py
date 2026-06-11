@@ -4,7 +4,6 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
-
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="PolyMix",
@@ -15,34 +14,30 @@ st.set_page_config(
 # ── Styling ───────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-    /* Base */
     html, body, [data-testid="stAppViewContainer"] {
-        background-color: #0d0d0d;
-        color: #f0f0f0;
+        background-color: #ffffff;
+        color: #1a1a1a;
         font-family: 'Segoe UI', sans-serif;
     }
     [data-testid="stHeader"] { background: transparent; }
     [data-testid="stSidebar"] { display: none; }
 
-    /* Title */
     .pm-title {
         font-size: 2.2rem;
         font-weight: 800;
-        color: #e8336d;
         letter-spacing: -0.5px;
         margin-bottom: 0;
     }
     .pm-subtitle {
         font-size: 0.9rem;
-        color: #888;
+        color: #999;
         margin-top: 2px;
         margin-bottom: 28px;
     }
 
-    /* Cards */
     .pm-card {
-        background: #1a1a1a;
-        border: 1px solid #2a2a2a;
+        background: #fafafa;
+        border: 1px solid #ebebeb;
         border-radius: 12px;
         padding: 20px 24px;
         margin-bottom: 18px;
@@ -56,42 +51,15 @@ st.markdown("""
         margin-bottom: 14px;
     }
 
-    /* Part result rows */
-    .part-row {
-        background: #1e1e1e;
-        border: 1px solid #2e2e2e;
+    .pm-warn {
+        background: #fff5f0;
+        border: 1px solid #f5c0a0;
         border-radius: 8px;
         padding: 12px 16px;
-        margin-bottom: 8px;
-        cursor: pointer;
-        transition: border-color 0.15s;
+        color: #c05000;
+        font-size: 0.88rem;
     }
-    .part-row:hover { border-color: #e8336d; }
-    .part-row-name { font-size: 0.95rem; font-weight: 600; color: #f0f0f0; }
-    .part-row-meta { font-size: 0.8rem; color: #888; margin-top: 3px; }
 
-    /* Ingredient table */
-    .ing-table { width: 100%; border-collapse: collapse; }
-    .ing-table th {
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: #888;
-        padding: 6px 10px;
-        text-align: left;
-        border-bottom: 1px solid #2a2a2a;
-    }
-    .ing-table td {
-        padding: 8px 10px;
-        font-size: 0.9rem;
-        border-bottom: 1px solid #1e1e1e;
-    }
-    .ing-table tr:last-child td { border-bottom: none; }
-    .ing-name { color: #d0d0d0; font-weight: 500; }
-    .ing-pct { color: #888; font-size: 0.8rem; }
-    .ing-kg { color: #e8336d; font-weight: 700; font-size: 1rem; }
-
-    /* Summary strip */
     .summary-strip {
         background: #e8336d;
         border-radius: 8px;
@@ -101,34 +69,35 @@ st.markdown("""
         align-items: center;
         margin-top: 6px;
     }
-    .summary-strip-label { font-size: 0.8rem; color: rgba(255,255,255,0.75); }
+    .summary-strip-label { font-size: 0.8rem; color: rgba(255,255,255,0.8); }
     .summary-strip-val { font-size: 1.2rem; font-weight: 800; color: #fff; }
 
-    /* Warning */
-    .pm-warn {
-        background: #2a1a00;
-        border: 1px solid #8a4400;
+    .pm-success {
+        background: #f0fdf4;
+        border: 1px solid #86efac;
         border-radius: 8px;
-        padding: 12px 16px;
-        color: #ffaa44;
-        font-size: 0.88rem;
+        padding: 14px 18px;
+        color: #166534;
+        font-weight: 600;
+        font-size: 0.95rem;
+        text-align: center;
     }
 
-    /* Input overrides */
+    hr { border-color: #ebebeb; margin: 20px 0; }
+
     [data-testid="stTextInput"] input,
     [data-testid="stNumberInput"] input {
-        background: #1a1a1a !important;
-        border: 1px solid #333 !important;
-        color: #f0f0f0 !important;
+        background: #ffffff !important;
+        border: 1px solid #ddd !important;
+        color: #1a1a1a !important;
         border-radius: 8px !important;
     }
     [data-testid="stTextInput"] input:focus,
     [data-testid="stNumberInput"] input:focus {
         border-color: #e8336d !important;
-        box-shadow: 0 0 0 2px rgba(232,51,109,0.15) !important;
+        box-shadow: 0 0 0 2px rgba(232,51,109,0.12) !important;
     }
 
-    /* Button */
     .stButton > button {
         background: #e8336d !important;
         color: #fff !important;
@@ -143,26 +112,16 @@ st.markdown("""
     .stButton > button:hover { opacity: 0.88 !important; }
     .stButton > button:disabled { opacity: 0.4 !important; }
 
-    /* Success */
-    .pm-success {
-        background: #0a2a1a;
-        border: 1px solid #1a6a3a;
-        border-radius: 8px;
-        padding: 14px 18px;
-        color: #4ade80;
-        font-weight: 600;
-        font-size: 0.95rem;
-        text-align: center;
+    [data-testid="stRadio"] label,
+    [data-testid="stSelectbox"] label { color: #555 !important; font-size: 0.88rem; }
+
+    /* Style the dataframe to match */
+    [data-testid="stDataFrame"] {
+        border: 1px solid #ebebeb !important;
+        border-radius: 8px !important;
+        overflow: hidden;
     }
 
-    /* Divider */
-    hr { border-color: #2a2a2a; margin: 20px 0; }
-
-    /* Radio / selectbox fix */
-    [data-testid="stRadio"] label,
-    [data-testid="stSelectbox"] label { color: #ccc !important; font-size: 0.88rem; }
-
-    /* Hide streamlit branding */
     #MainMenu, footer { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
@@ -196,12 +155,10 @@ def load_data():
     ws = sh.worksheet(DATA_SHEET)
     records = ws.get_all_records()
     df = pd.DataFrame(records)
-    # Normalise % columns: strip "%" and convert to float (0–1 range)
     for col in INGREDIENT_COLS:
         if col in df.columns:
             df[col] = df[col].astype(str).str.replace('%', '', regex=False).str.strip()
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0) / 100.0
-    # Ensure Accessories Code is string
     df["Accessories Code"] = df["Accessories Code"].astype(str).str.strip()
     df["Accessories Name"] = df["Accessories Name"].astype(str).str.strip()
     return df
@@ -235,25 +192,25 @@ def log_batch(row_data: dict, batch_kg: float, ingredient_kgs: dict):
         log_row.append(round(ingredient_kgs.get(col, 0), 3) if ingredient_kgs.get(col, 0) > 0 else "")
     ws.append_row(log_row, value_input_option="USER_ENTERED")
 
-# ── UI helpers ────────────────────────────────────────────────────────────────
-def pct_str(val: float) -> str:
-    return f"{val*100:.1f}%"
-
 def has_recipe(row) -> bool:
     return any(row.get(c, 0) > 0 for c in INGREDIENT_COLS)
 
-# ── Session state init ────────────────────────────────────────────────────────
+# ── Session state ─────────────────────────────────────────────────────────────
 for key, default in [
     ("selected_row", None),
     ("batch_confirmed", False),
-    ("search_term", ""),
-    ("search_mode", "Name"),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
 
 # ── Header ────────────────────────────────────────────────────────────────────
-st.markdown('<div class="pm-title">PolyMix</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="pm-title">'
+    '<span style="color:#e8336d;">Poly</span>'
+    '<span style="color:#1a1a1a;">Mix</span>'
+    '</div>',
+    unsafe_allow_html=True
+)
 st.markdown('<div class="pm-subtitle">ACI Premio Plastics · Batch Recipe Calculator</div>', unsafe_allow_html=True)
 
 # ── Load data ─────────────────────────────────────────────────────────────────
@@ -299,9 +256,8 @@ if search_term.strip():
         )
 
 if not results.empty:
-    st.markdown(f'<div style="font-size:0.8rem;color:#888;margin-bottom:8px;">{len(results)} result(s) found</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-size:0.8rem;color:#999;margin-bottom:8px;">{len(results)} result(s) found</div>', unsafe_allow_html=True)
 
-    # Build a display label per unique accessory
     options = {}
     for _, r in results.iterrows():
         label = f"{r['Accessories Name']}  ·  {r['Accessories Code']}  ·  {r['Base Color']}"
@@ -314,11 +270,10 @@ if not results.empty:
     )
     selected_row = options[selected_label]
 
-    # Now show all WIP parts that use this accessory
     parts_for_accessory = df[df["Accessories Code"] == str(selected_row["Accessories Code"])]
 
     if len(parts_for_accessory) > 1:
-        st.markdown('<div style="font-size:0.8rem;color:#aaa;margin:10px 0 6px;">Multiple WIP parts use this accessory — select the specific part:</div>', unsafe_allow_html=True)
+        st.markdown('<div style="font-size:0.8rem;color:#777;margin:10px 0 6px;">Multiple WIP parts use this accessory — select the specific part:</div>', unsafe_allow_html=True)
         part_options = {}
         for _, r in parts_for_accessory.iterrows():
             lbl = f"{r['Name']}  (Code {r['Code']})"
@@ -334,21 +289,20 @@ if not results.empty:
 elif search_term.strip():
     st.markdown('<div class="pm-warn">⚠ No parts found. Try a different search term.</div>', unsafe_allow_html=True)
 
-# ── STEP 2: Recipe calculation ────────────────────────────────────────────────
+# ── STEP 2: Batch size ────────────────────────────────────────────────────────
 if st.session_state.selected_row:
     row = st.session_state.selected_row
 
     st.markdown("---")
     st.markdown('<div class="pm-card"><div class="pm-card-title">Step 2 — Batch Size</div>', unsafe_allow_html=True)
 
-    # Part summary
     st.markdown(f"""
     <div style="margin-bottom:14px;">
-        <div style="font-size:1.05rem;font-weight:700;color:#f0f0f0;">{row.get('Accessories Name','')}</div>
-        <div style="font-size:0.82rem;color:#888;margin-top:3px;">
-            Code: <span style="color:#ccc;">{row.get('Accessories Code','')}</span> &nbsp;·&nbsp;
-            Color: <span style="color:#ccc;">{row.get('Base Color','')}</span> &nbsp;·&nbsp;
-            WIP: <span style="color:#ccc;">{row.get('Name','')}</span>
+        <div style="font-size:1.05rem;font-weight:700;color:#1a1a1a;">{row.get('Accessories Name','')}</div>
+        <div style="font-size:0.82rem;color:#999;margin-top:3px;">
+            Code: <span style="color:#555;">{row.get('Accessories Code','')}</span> &nbsp;·&nbsp;
+            Color: <span style="color:#555;">{row.get('Base Color','')}</span> &nbsp;·&nbsp;
+            WIP: <span style="color:#555;">{row.get('Name','')}</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -364,16 +318,15 @@ if st.session_state.selected_row:
             value=50.0,
             step=0.5,
             format="%.1f",
-            label_visibility="visible"
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # ── STEP 3: Ingredient breakdown ─────────────────────────────────────
+        # ── STEP 3: Ingredient breakdown ──────────────────────────────────────
         st.markdown("---")
         st.markdown('<div class="pm-card"><div class="pm-card-title">Step 3 — Ingredient Breakdown</div>', unsafe_allow_html=True)
 
         ingredient_kgs = {}
-        active_ingredients = []
+        table_rows = []
         for col in INGREDIENT_COLS:
             pct = row.get(col, 0)
             if isinstance(pct, str):
@@ -381,36 +334,25 @@ if st.session_state.selected_row:
             if pct > 0:
                 kg = round(pct * batch_kg, 3)
                 ingredient_kgs[col] = kg
-                active_ingredients.append((col, pct, kg))
+                display_name = col.replace(" %", "")
+                table_rows.append({
+                    "Ingredient": display_name,
+                    "%": f"{pct*100:.1f}%",
+                    "Amount (kg)": f"{kg:.3f}",
+                })
 
-        total_pct = sum(p for _, p, _ in active_ingredients)
-        total_kg = sum(k for _, _, k in active_ingredients)
+        total_pct = sum(row.get(c, 0) for c in INGREDIENT_COLS if isinstance(row.get(c, 0), float) and row.get(c, 0) > 0)
+        total_kg = sum(ingredient_kgs.values())
 
-        # Table
-        table_html = """
-        <table class="ing-table">
-            <thead><tr>
-                <th>Ingredient</th>
-                <th>%</th>
-                <th>Amount (kg)</th>
-            </tr></thead>
-            <tbody>
-        """
-        for name, pct, kg in active_ingredients:
-            # Clean column name for display (remove " %" suffix if present)
-            display_name = name.replace(" %", "")
-            table_html += f"""
-            <tr>
-                <td class="ing-name">{display_name}</td>
-                <td class="ing-pct">{pct*100:.1f}%</td>
-                <td class="ing-kg">{kg:.3f}</td>
-            </tr>"""
-        table_html += "</tbody></table>"
-        st.markdown(table_html, unsafe_allow_html=True)
+        table_df = pd.DataFrame(table_rows)
+        st.dataframe(
+            table_df,
+            use_container_width=True,
+            hide_index=True,
+        )
 
-        # Totals strip
         st.markdown(f"""
-        <div class="summary-strip" style="margin-top:14px;">
+        <div class="summary-strip">
             <div>
                 <div class="summary-strip-label">Total Percentage</div>
                 <div class="summary-strip-val">{total_pct*100:.1f}%</div>
@@ -422,7 +364,6 @@ if st.session_state.selected_row:
         </div>
         """, unsafe_allow_html=True)
 
-        # Warn if total % isn't ~100
         if abs(total_pct - 1.0) > 0.02:
             st.markdown(f'<div class="pm-warn" style="margin-top:10px;">⚠ Recipe total is {total_pct*100:.1f}% — does not add up to 100%. Check the Masterfile.</div>', unsafe_allow_html=True)
 
@@ -432,9 +373,9 @@ if st.session_state.selected_row:
         st.markdown("---")
         st.markdown('<div class="pm-card"><div class="pm-card-title">Step 4 — Confirm Batch</div>', unsafe_allow_html=True)
 
-        st.markdown(f"""
-        <div style="font-size:0.88rem;color:#aaa;margin-bottom:14px;">
-            Confirming will log this batch to the <strong style="color:#f0f0f0;">Batch Log</strong> sheet with a timestamp.
+        st.markdown("""
+        <div style="font-size:0.88rem;color:#777;margin-bottom:14px;">
+            Confirming will log this batch to the <strong style="color:#1a1a1a;">Batch Log</strong> sheet with a timestamp.
             Make sure the amounts above are correct before proceeding.
         </div>
         """, unsafe_allow_html=True)
