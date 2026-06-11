@@ -120,11 +120,11 @@ st.markdown("""
     /* Core Action Button Overrides */
     .stButton > button {
         background: #e8336d !important;
-        color: #ffffff !important;
-        font-weight: bold !important;
+        color: #ffffff !important; 
         border: none !important;
         border-radius: 8px !important;
         font-size: 3rem !important;
+        font-weight: bold !important;
         width: 100% !important; /* Ensure the button element fills its parent */
         height: 50px !important;
         line-height: 50px !important;
@@ -417,7 +417,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
     with bot_col2:
         if not st.session_state.batch_confirmed:
             # use_container_width added here
-            if st.button("✓ Confirm & Log Batch", key="action_log_trigger", use_container_width=True):
+            if st.button("Confirm & Log Batch", key="action_log_trigger", use_container_width=True):
                 try:
                     log_batch(row, batch_kg, ingredient_kgs)
                     st.session_state.batch_confirmed = True
