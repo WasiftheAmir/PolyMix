@@ -3,8 +3,7 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
-import json
-import re
+
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -187,8 +186,7 @@ SCOPES = [
 # ── Google Sheets helpers ─────────────────────────────────────────────────────
 @st.cache_resource(show_spinner=False)
 def get_gc():
-    creds_dict = json.loads(st.secrets["gcp_service_account"])
-    creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+    creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=SCOPES)
     return gspread.authorize(creds)
 
 @st.cache_data(ttl=120, show_spinner=False)
