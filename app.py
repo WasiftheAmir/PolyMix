@@ -121,10 +121,10 @@ st.markdown("""
     .stButton > button {
         background: #e8336d !important;
         color: #ffffff !important;
-        font-weight: 700 !important;
+        font-weight: 1400 !important;
         border: none !important;
         border-radius: 8px !important;
-        font-size: 0.9rem !important;
+        font-size: 2rem !important;
         width: 100% !important; /* Ensure the button element fills its parent */
         height: 50px !important;
         line-height: 50px !important;
