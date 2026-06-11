@@ -268,6 +268,7 @@ with st.spinner("Loading masterfile..."):
 
 # ── STEP 1: Search ────────────────────────────────────────────────────────────
 st.markdown('<div class="pm-card"><div class="pm-card-title">Step 1 — Find Part</div>', unsafe_allow_html=True)
+st.caption("Search by Accessories Name (e.g. 'Gold WD Frame 5D') or switch to Code and enter an accessories code (e.g. '3108000537'). Select the matching part from the results.")
 
 col1, col2 = st.columns([2, 1])
 with col1:
@@ -340,6 +341,7 @@ if st.session_state.selected_row:
 
     st.markdown("---")
     st.markdown('<div class="pm-card"><div class="pm-card-title">Step 2 — Batch Size</div>', unsafe_allow_html=True)
+    st.caption("Enter the total weight of the mixture you want to prepare in kg. The ingredient amounts will be calculated automatically.")
 
     st.markdown(f"""
     <div style="margin-bottom:14px;">
@@ -369,6 +371,7 @@ if st.session_state.selected_row:
         # ── STEP 3: Ingredient breakdown ──────────────────────────────────────
         st.markdown("---")
         st.markdown('<div class="pm-card"><div class="pm-card-title">Step 3 — Ingredient Breakdown</div>', unsafe_allow_html=True)
+        st.caption("Exact amounts for each ingredient based on the recipe percentages and your batch size. Add each ingredient to the mixer in the amounts shown.")
 
         ingredient_kgs = {}
         table_rows = []
@@ -417,13 +420,7 @@ if st.session_state.selected_row:
         # ── STEP 4: Confirm & Log ─────────────────────────────────────────────
         st.markdown("---")
         st.markdown('<div class="pm-card"><div class="pm-card-title">Step 4 — Confirm Batch</div>', unsafe_allow_html=True)
-
-        st.markdown("""
-        <div style="font-size:0.88rem;color:#777;margin-bottom:14px;">
-            Confirming will log this batch to the <strong style="color:#1a1a1a;">Batch Log</strong> sheet with a timestamp.
-            Make sure the amounts above are correct before proceeding.
-        </div>
-        """, unsafe_allow_html=True)
+        st.caption("Once you have prepared the batch using the amounts above, press Confirm to log it to the Batch Log sheet with a timestamp.")
 
         if not st.session_state.batch_confirmed:
             if st.button("✓ Confirm & Log Batch"):
