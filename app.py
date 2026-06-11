@@ -77,23 +77,28 @@ st.markdown("""
     .summary-strip {
         background: #e8336d;
         border-radius: 8px;
-        padding: 8px 16px;
+        padding: 0px 16px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        height: 50px; /* Matched height */
+        box-sizing: border-box;
     }
-    .summary-strip-label { font-size: 0.75rem; color: rgba(255,255,255,0.8); }
-    .summary-strip-val { font-size: 1.05rem; font-weight: 800; color: #fff; }
+    .summary-strip-label { font-size: 0.72rem; color: rgba(255,255,255,0.85); line-height: 1.1; }
+    .summary-strip-val { font-size: 1.05rem; font-weight: 800; color: #fff; line-height: 1.2; }
 
     .pm-success {
         background: #f0fdf4;
         border: 1px solid #86efac;
         border-radius: 8px;
-        padding: 10px 14px;
+        padding: 0px 14px;
         color: #166534;
         font-weight: 600;
         font-size: 0.9rem;
-        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 50px; /* Matched height */
     }
 
     [data-testid="stTextInput"] input,
@@ -109,18 +114,22 @@ st.markdown("""
         box-shadow: 0 0 0 2px rgba(232,51,109,0.12) !important;
     }
 
+    /* Core Action Button Overrides */
     .stButton > button {
         background: #e8336d !important;
-        color: #ffffff !important;
+        color: #ffffff !important; /* Force font color to white */
         font-weight: 700 !important;
         border: none !important;
         border-radius: 8px !important;
-        padding: 8px 20px !important;
         font-size: 0.9rem !important;
         width: 100%;
-        height: 50px !important
-        line-height: 50px !important
+        height: 50px !important; /* Matched height */
+        line-height: 50px !important;
+        padding: 0 !important; 
         transition: opacity 0.15s;
+    }
+    .stButton > button p {
+        color: #ffffff !important; /* Secondary safeguard for button label element */
     }
     .stButton > button:hover { opacity: 0.88 !important; }
     .stButton > button:disabled { opacity: 0.4 !important; }
@@ -228,6 +237,19 @@ def log_batch(row_data: dict, batch_kg: float, ingredient_kgs: dict):
     for col in INGREDIENT_COLS:
         log_row.append(round(ingredient_kgs.get(col, 0), 3) if ingredient_kgs.get(col, 0) > 0 else "")
     ws.append_row(log_row, value_input_option="USER_ENTERED")
+
+def load_recent_logs():
+    gc = get_gc()
+    sh = gc.open_by_key(SPREADSHEET_ID)
+    try:
+        ws = sh.worksheet(LOG_SHEET)
+        records = ws.get_all_records()
+        if not records:
+            return pd.DataFrame()
+        df_log = pd.DataFrame(records)
+        return df_log.iloc[::-1].head(10)
+    except Exception:
+        return pd.DataFrame()
 
 def has_recipe(row) -> bool:
     return any(row.get(c, 0) > 0 for c in INGREDIENT_COLS)
@@ -342,7 +364,6 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
         unsafe_allow_html=True
     )
 
-    # Building Transposed Structure
     columns = ["Metric"]
     pct_row = ["%"]
     kg_row = ["Amount (kg)"]
@@ -378,21 +399,23 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
     
     with bot_col1:
         st.markdown(f"""
-        <div class="summary-strip" style="margin-top:0px;">
+        <div class="summary-strip">
             <div>
                 <div class="summary-strip-label">Total Pct</div>
-                <div class="summary-strip-val" style="font-size:1.05rem;">{total_pct*100:.1f}%</div>
+                <div class="summary-strip-val">{total_pct*100:.1f}%</div>
             </div>
             <div style="text-align:right;">
                 <div class="summary-strip-label">Total Weight</div>
-                <div class="summary-strip-val" style="font-size:1.05rem;">{total_kg:.3f} kg</div>
+                <div class="summary-strip-val">{total_kg:.3f} kg</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
     with bot_col2:
         if not st.session_state.batch_confirmed:
-            if st.button("✓ Confirm & Log Batch"):
+            st.button("✓ Confirm & Log Batch")
+            # Logic branch checking for execution from the baseline frame click loop
+            if st.session_state.get('search_input') and st.button("✓ Confirm & Log Batch", key="action_log_trigger"):
                 try:
                     log_batch(row, batch_kg, ingredient_kgs)
                     st.session_state.batch_confirmed = True
@@ -401,9 +424,30 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
                     st.error(f"Failed to log batch: {e}")
         else:
             ts = datetime.now().strftime("%H:%M")
-            st.markdown(f'<div class="pm-success" style="padding: 8px 12px;">✓ Batch logged successfully · {ts}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="pm-success">✓ Batch logged successfully · {ts}</div>', unsafe_allow_html=True)
             if st.button("Start New Batch"):
                 st.session_state.batch_confirmed = False
                 st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
+
+# ── RECENT LOGS HISTORY ───────────────────────────────────────────────────────
+st.markdown(
+    '<div class="pm-card">'
+    '<div class="pm-card-title">Recent Factory Logs (Last 10)</div>',
+    unsafe_allow_html=True
+)
+
+recent_logs_df = load_recent_logs()
+
+if not recent_logs_df.empty:
+    columns_to_keep = [col for col in recent_logs_df.columns if not recent_logs_df[col].astype(str).str.strip().eq('').all()]
+    st.dataframe(
+        recent_logs_df[columns_to_keep],
+        use_container_width=True,
+        hide_index=True
+    )
+else:
+    st.caption("No recent batch entries found in the log.")
+
+st.markdown('</div>', unsafe_allow_html=True)
