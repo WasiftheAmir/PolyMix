@@ -111,13 +111,15 @@ st.markdown("""
 
     .stButton > button {
         background: #e8336d !important;
-        color: #fff !important;
+        color: #ffffff !important;
         font-weight: 700 !important;
         border: none !important;
         border-radius: 8px !important;
         padding: 8px 20px !important;
         font-size: 0.9rem !important;
         width: 100%;
+        height: 50px !important
+        line-height: 50px !important
         transition: opacity 0.15s;
     }
     .stButton > button:hover { opacity: 0.88 !important; }
