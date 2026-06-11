@@ -27,7 +27,7 @@ st.markdown("""
     }
 
     .pm-title {
-        font-size: 1.8rem;
+        font-size: 3.2rem;
         font-weight: 800;
         letter-spacing: -0.5px;
         margin-bottom: 0;
