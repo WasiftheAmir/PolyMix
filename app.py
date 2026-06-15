@@ -13,7 +13,7 @@ st.set_page_config(
 
 # Centralized Color Variables for quick presentation adjustments
 THEME = {
-    "bg_primary": "#f0f8ff",       # Alice Blue / Sky-tinted light background
+    "bg_primary": "#ffffff",       # Alice Blue / Sky-tinted light background
     "bg_card": "#ffffff",          # Clean white cards to pop against the tinted background
     "border": "#d0e1fd",           # Soft blue border
     "border_input": "#b9d6fd",      # Defined soft blue input border
