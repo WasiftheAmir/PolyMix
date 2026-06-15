@@ -263,7 +263,6 @@ def has_recipe(row) -> bool:
 for key, default in [
     ("selected_row", None),
     ("batch_confirmed", False),
-    ("edited_percentages", {}),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -339,7 +338,6 @@ if search_term.strip():
             final_row = options[selected_label]
             st.session_state.selected_row = final_row
             st.session_state.batch_confirmed = False
-            st.session_state.edited_percentages = {}
             
             if has_recipe(final_row):
                 batch_kg = st.number_input(
@@ -372,67 +370,46 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
         unsafe_allow_html=True
     )
 
-    # Build editable dataframe
-    edit_data = []
+    # Build editable % row — ingredients as columns (horizontal layout)
+    pct_row_data = {}
     for col in INGREDIENT_COLS:
         pct = row.get(col, 0)
         if isinstance(pct, str):
             pct = 0
-        # Use edited value if exists, otherwise use original
-        display_pct = st.session_state.edited_percentages.get(col, pct) * 100
-        edit_data.append({
-            "Ingredient": col.replace(" %", ""),
-            "%": display_pct,
-        })
+        pct_row_data[col.replace(" %", "")] = [round(pct * 100, 2)]
 
-    edit_df = pd.DataFrame(edit_data)
-    
-    # Only show rows where ingredient is present in original recipe or has been edited
-    edit_df_filtered = edit_df[
-        (edit_df["%"] > 0) | 
-        (edit_df["Ingredient"].isin([col.replace(" %", "") for col in st.session_state.edited_percentages.keys()]))
-    ].copy()
-    
-    # If no ingredients, show all rows with 0
-    if edit_df_filtered.empty:
-        edit_df_filtered = edit_df[edit_df["%"] > 0].copy()
+    pct_df = pd.DataFrame(pct_row_data, index=["%"])
 
-    edited_df = st.data_editor(
-        edit_df_filtered,
+    column_config = {
+        c: st.column_config.NumberColumn(c, min_value=0, max_value=100, step=0.1, format="%.1f%%")
+        for c in pct_df.columns
+    }
+
+    # Key tied to the selected part so the editor resets when switching parts
+    editor_key = f"recipe_editor_{row.get('Accessories Code', 'unknown')}"
+
+    edited_pct_df = st.data_editor(
+        pct_df,
         use_container_width=True,
-        hide_index=True,
-        column_config={
-            "%": st.column_config.NumberColumn(
-                "%",
-                min_value=0,
-                max_value=100,
-                step=0.1,
-                format="%.1f%%"
-            )
-        },
-        key="recipe_editor"
+        column_config=column_config,
+        key=editor_key
     )
 
-    # Recalculate with edited values
+    # Calculated kg row — derived live from edited percentages
+    kg_row_data = {}
     ingredient_kgs = {}
     edited_pcts_decimal = {}
-    
-    for idx, row_edit in edited_df.iterrows():
-        ing_name = row_edit["Ingredient"]
-        pct_val = row_edit["%"] / 100.0
-        
-        # Find matching ingredient column
-        matching_col = None
-        for col in INGREDIENT_COLS:
-            if col.replace(" %", "") == ing_name:
-                matching_col = col
-                break
-        
-        if matching_col:
-            edited_pcts_decimal[matching_col] = pct_val
-            kg = round(pct_val * batch_kg, 3)
-            if kg > 0:
-                ingredient_kgs[matching_col] = kg
+
+    for col in INGREDIENT_COLS:
+        display_name = col.replace(" %", "")
+        pct_val = edited_pct_df[display_name].iloc[0] / 100.0
+        edited_pcts_decimal[col] = pct_val
+        kg = round(pct_val * batch_kg, 3)
+        ingredient_kgs[col] = kg
+        kg_row_data[display_name] = [f"{kg:.3f}"]
+
+    kg_df = pd.DataFrame(kg_row_data, index=["kg"])
+    st.dataframe(kg_df, use_container_width=True)
 
     # Calculate totals with edited percentages
     total_pct = sum(edited_pcts_decimal.values())
@@ -477,7 +454,6 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
             st.markdown(f'<div class="pm-success">✓ Batch logged successfully · {ts}</div>', unsafe_allow_html=True)
             if st.button("Start New Batch", use_container_width=True):
                 st.session_state.batch_confirmed = False
-                st.session_state.edited_percentages = {}
                 st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
