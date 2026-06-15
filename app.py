@@ -495,7 +495,14 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
 
     with bot_col2:
         if not st.session_state.batch_confirmed:
-            if st.button("Confirm & Log Batch", key="action_log_trigger", use_container_width=True):
+            is_locked = abs(pct_deviation) > 0.01
+            if st.button(
+                "Confirm & Log Batch",
+                key="action_log_trigger",
+                use_container_width=True,
+                disabled=is_locked,
+                help="Recipe must total exactly 100% before logging." if is_locked else None
+            ):
                 try:
                     log_batch(row, batch_kg, ingredient_kgs)
                     st.session_state.batch_confirmed = True
