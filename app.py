@@ -4,6 +4,24 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
+# ── Native Mobile Interface Auto-Detection ───────────────────────────────────
+# Catches screen width using query params. If missing, it checks window size.
+is_mobile_by_url = st.query_params.get("mobile") == "true"
+
+if "mobile" not in st.query_params:
+    st.components.v1.html(
+        """
+        <script>
+            const isMobile = window.innerWidth < 768;
+            const currentUrl = new URL(window.parent.location.href);
+            currentUrl.searchParams.set("mobile", isMobile);
+            window.parent.location.href = currentUrl.toString();
+        </script>
+        """,
+        height=0,
+        width=0
+    )
+
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="PolyMix",
@@ -17,11 +35,11 @@ THEME = {
     "light_mode": True,          
     
     # 2. Choose your main brand hue (0-360) and saturation (0%-100%)
-    "brand_hue": "335",          # 200 is Sky Blue, 140 is Emerald, 25 is Orange, etc.
+    "brand_hue": "200",          # 200 is Sky Blue, 140 is Emerald, 25 is Orange, etc.
     "brand_saturation": "85%",   
     
     # 3. Choose your text base hue and saturation
-    "text_hue": "360",           # Midnight/dark blue base
+    "text_hue": "225",           # Midnight/dark blue base
     "text_saturation": "35%",
     
     # 4. Static functional colors (will stay constant)
@@ -489,7 +507,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
 
     pct_values = st.session_state.pct_values
 
-    # Build combined % / kg table — ingredients as columns, two rows (% and kg)
+    # Build combined % / kg table
     display_data = {}
     for col in active_cols:
         display_name = col.replace(" %", "")
@@ -499,9 +517,8 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
 
     combined_df = pd.DataFrame(display_data, index=["%", "kg"])
 
-    # Adaptive mobile layout switch
-    layout_mode = st.radio("Interface Mode", ["Standard (Horizontal)", "Mobile (Vertical Transposed)"], horizontal=True, label_visibility="collapsed")
-    is_vertical = (layout_mode == "Mobile (Vertical Transposed)")
+    # Responsive layout parsing based on url-caught mobile state
+    is_vertical = is_mobile_by_url
 
     if is_vertical:
         combined_df = combined_df.T
@@ -525,7 +542,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
         key=editor_key
     )
 
-    # Pull edited % values adaptively based on selected layout direction
+    # Pull edited % values adaptively based on auto-detected layout direction
     new_pct_values = {}
     changed = False
     for col in active_cols:
