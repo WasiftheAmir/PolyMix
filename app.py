@@ -263,6 +263,8 @@ def has_recipe(row) -> bool:
 for key, default in [
     ("selected_row", None),
     ("batch_confirmed", False),
+    ("active_cols", []),
+    ("current_part_code", None),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -370,9 +372,20 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
         unsafe_allow_html=True
     )
 
-    # Build editable % row — ingredients as columns (horizontal layout)
+    # Reset active ingredient list when a different part is selected
+    part_code = row.get("Accessories Code", "unknown")
+    if st.session_state.current_part_code != part_code:
+        st.session_state.current_part_code = part_code
+        st.session_state.active_cols = [
+            col for col in INGREDIENT_COLS
+            if not isinstance(row.get(col, 0), str) and row.get(col, 0) > 0
+        ]
+
+    active_cols = st.session_state.active_cols
+
+    # Build editable % row — only active ingredients, as columns (horizontal layout)
     pct_row_data = {}
-    for col in INGREDIENT_COLS:
+    for col in active_cols:
         pct = row.get(col, 0)
         if isinstance(pct, str):
             pct = 0
@@ -385,8 +398,8 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
         for c in pct_df.columns
     }
 
-    # Key tied to the selected part so the editor resets when switching parts
-    editor_key = f"recipe_editor_{row.get('Accessories Code', 'unknown')}"
+    # Key tied to part + active column set so the editor refreshes when columns change
+    editor_key = f"recipe_editor_{part_code}_{len(active_cols)}_{'-'.join(active_cols)}"
 
     edited_pct_df = st.data_editor(
         pct_df,
@@ -400,7 +413,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
     ingredient_kgs = {}
     edited_pcts_decimal = {}
 
-    for col in INGREDIENT_COLS:
+    for col in active_cols:
         display_name = col.replace(" %", "")
         pct_val = edited_pct_df[display_name].iloc[0] / 100.0
         edited_pcts_decimal[col] = pct_val
@@ -410,6 +423,24 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
 
     kg_df = pd.DataFrame(kg_row_data, index=["kg"])
     st.dataframe(kg_df, use_container_width=True)
+
+    # ── Add ingredient control ────────────────────────────────────────────────
+    remaining_cols = [c for c in INGREDIENT_COLS if c not in active_cols]
+    if remaining_cols:
+        add_col1, add_col2 = st.columns([3, 1])
+        with add_col1:
+            new_ingredient = st.selectbox(
+                "Add ingredient",
+                [c.replace(" %", "") for c in remaining_cols],
+                label_visibility="collapsed",
+                key=f"add_ingredient_select_{part_code}"
+            )
+        with add_col2:
+            if st.button("+ Add", use_container_width=True, key=f"add_ingredient_btn_{part_code}"):
+                # Map display name back to actual column name
+                matching_col = next(c for c in remaining_cols if c.replace(" %", "") == new_ingredient)
+                st.session_state.active_cols.append(matching_col)
+                st.rerun()
 
     # Calculate totals with edited percentages
     total_pct = sum(edited_pcts_decimal.values())
