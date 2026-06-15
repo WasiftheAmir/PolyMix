@@ -11,36 +11,17 @@ st.set_page_config(
     layout="centered",
 )
 
-# ── Native Mobile Interface Auto-Detection (CORS Bypass) ─────────────────────
-is_vertical = st.query_params.get("mobile") == "true"
-
-# Inject JS directly into the root frame to avoid iframe sandbox restrictions
-st.markdown(
-    """
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" 
-         onload="
-            const isMobile = window.innerWidth < 768;
-            const params = new URLSearchParams(window.location.search);
-            if (params.get('mobile') !== String(isMobile)) {
-                params.set('mobile', isMobile);
-                window.location.search = params.toString();
-            }
-         " style="display:none;">
-    """,
-    unsafe_allow_html=True
-)
-
 # Centralized Core Color Variables for quick presentation adjustments
 THEME = {
     # 1. Choose your mode: True for Light (Pure White), False for Dark (Pure Black)
     "light_mode": True,          
     
     # 2. Choose your main brand hue (0-360) and saturation (0%-100%)
-    "brand_hue": "200",          # 200 is Sky Blue, 140 is Emerald, 25 is Orange, etc.
+    "brand_hue": "335",          # 200 is Sky Blue, 140 is Emerald, 25 is Orange, etc.
     "brand_saturation": "85%",   
     
     # 3. Choose your text base hue and saturation
-    "text_hue": "225",           # Midnight/dark blue base
+    "text_hue": "360",           # Midnight/dark blue base
     "text_saturation": "35%",
     
     # 4. Static functional colors (will stay constant)
@@ -508,7 +489,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
 
     pct_values = st.session_state.pct_values
 
-    # Build combined % / kg table
+    # Build combined % / kg table — ingredients as columns, two rows (% and kg)
     display_data = {}
     for col in active_cols:
         display_name = col.replace(" %", "")
@@ -518,7 +499,10 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
 
     combined_df = pd.DataFrame(display_data, index=["%", "kg"])
 
-    # Responsive layout parsing based on url-caught mobile state
+    # Adaptive mobile layout switch
+    layout_mode = st.radio("Interface Mode", ["Standard (Horizontal)", "Mobile (Vertical Transposed)"], horizontal=True, label_visibility="collapsed")
+    is_vertical = (layout_mode == "Mobile (Vertical Transposed)")
+
     if is_vertical:
         combined_df = combined_df.T
         column_config = {
@@ -541,7 +525,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
         key=editor_key
     )
 
-    # Pull edited % values adaptively based on layout direction
+    # Pull edited % values adaptively based on selected layout direction
     new_pct_values = {}
     changed = False
     for col in active_cols:
