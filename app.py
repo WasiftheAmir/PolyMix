@@ -15,7 +15,7 @@ st.set_page_config(
 # Centralized Core Color Variables for quick presentation adjustments
 THEME = {
     # 1. Choose your main brand hue (0-360) and saturation (0%-100%)
-    "brand_hue": "200",          # 200 is Sky Blue
+    "brand_hue": "200",          # 200 is Sky Blue, 140 is Emerald, 25 is Orange, etc.
     "brand_saturation": "85%",   
     
     # 2. Choose your text base hue and saturation
@@ -31,23 +31,23 @@ THEME = {
     "success_text": "#166534",
 }
 
-# ── Styling (Dynamic CSS utilizing THEME variables) ──────────────────────────
+# ── Styling (Optimized for Zero-Scroll with Guidance text) ────────────────────
 st.markdown(f"""
 <style>
     :root {{
-        /* --- BRAND DERIVATIONS (Sky Blue Base) --- */
+        /* --- BRAND DERIVATIONS --- */
         --accent: hsl({THEME["brand_hue"]}, {THEME["brand_saturation"]}, 45%);
         --accent-disabled: hsl({THEME["brand_hue"]}, {THEME["brand_saturation"]}, 85%);
         --accent-light: hsl({THEME["brand_hue"]}, {THEME["brand_saturation"]}, 94%);
         --border: hsl({THEME["brand_hue"]}, 40%, 90%);
         --border-input: hsl({THEME["brand_hue"]}, 50%, 85%);
-        --bg-primary: hsl({THEME["brand_hue"]}, 30%, 97%); /* Alice blue tint */
+        --bg-primary: hsl({THEME["brand_hue"]}, 30%, 97%); 
         --bg-card: #ffffff;
 
-        /* --- TEXT DERIVATIONS (Off-Black/Midnight Blue Base) --- */
-        --text-main: hsl({THEME["text_hue"]}, {THEME["text_saturation"]}, 11%);      /* Main off-black tint */
-        --text-guidance: hsl({THEME["text_hue"]}, {THEME["text_saturation"]}, 35%);  /* Dark slate */
-        --text-muted: hsl({THEME["text_hue"]}, 15%, 55%);                             /* Light slate placeholder */
+        /* --- TEXT DERIVATIONS --- */
+        --text-main: hsl({THEME["text_hue"]}, {THEME["text_saturation"]}, 11%);      
+        --text-guidance: hsl({THEME["text_hue"]}, {THEME["text_saturation"]}, 35%);  
+        --text-muted: hsl({THEME["text_hue"]}, 15%, 55%);                             
 
         /* --- STATIC FUNCTIONAL COLORS --- */
         --warn-bg: {THEME["warn_bg"]};
@@ -65,7 +65,6 @@ st.markdown(f"""
         color: var(--text-main);
         font-family: 'Segoe UI', sans-serif;
     }}
-    
     [data-testid="stHeader"] {{ background: transparent; }}
     [data-testid="stSidebar"] {{ display: none; }}
     [data-testid="block-container"] {{
@@ -81,14 +80,14 @@ st.markdown(f"""
     }}
     .pm-subtitle {{
         font-size: 0.85rem;
-        color: {THEME["text_muted"]};
+        color: var(--text-muted);
         margin-top: 1px;
         margin-bottom: 12px;
     }}
 
     .pm-card {{
-        background: {THEME["bg_card"]};
-        border: 1px solid {THEME["border"]};
+        background: var(--bg-card);
+        border: 1px solid var(--border);
         border-radius: 12px;
         padding: 12px 16px;
         margin-bottom: 10px;
@@ -98,37 +97,37 @@ st.markdown(f"""
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 1.2px;
-        color: {THEME["accent"]};
+        color: var(--accent);
         margin-bottom: 2px;
     }}
     .pm-card-guidance {{
         font-size: 0.78rem;
-        color: {THEME["text_guidance"]};
+        color: var(--text-guidance);
         margin-bottom: 10px;
         line-height: 1.3;
     }}
     .pm-card-example {{
-        color: {THEME["text_muted"]};
+        color: var(--text-muted);
         font-style: italic;
     }}
 
     .pm-warn {{
-        background: {THEME["warn_bg"]};
-        border: 1px solid {THEME["warn_border"]};
+        background: var(--warn-bg);
+        border: 1px solid var(--warn-border);
         border-radius: 8px;
         padding: 8px 12px;
-        color: {THEME["warn_text"]};
+        color: var(--warn-text);
         font-size: 0.85rem;
         font-weight: 600;
         margin-bottom: 10px;
     }}
 
     .pm-success {{
-        background: {THEME["success_bg"]};
-        border: 1px solid {THEME["success_border"]};
+        background: var(--success-bg);
+        border: 1px solid var(--success-border);
         border-radius: 8px;
         padding: 0px 14px;
-        color: {THEME["success_text"]};
+        color: var(--success-text);
         font-weight: 600;
         font-size: 0.9rem;
         display: flex;
@@ -140,7 +139,7 @@ st.markdown(f"""
     }}
 
     .summary-strip {{
-        background: {THEME["accent"]};
+        background: var(--accent);
         border-radius: 8px;
         padding: 0px 16px;
         display: flex;
@@ -155,20 +154,20 @@ st.markdown(f"""
 
     [data-testid="stTextInput"] input,
     [data-testid="stNumberInput"] input {{
-        background: {THEME["bg_primary"]} !important;
-        border: 1px solid {THEME["border_input"]} !important;
-        color: {THEME["text_main"]} !important;
+        background: var(--bg-card) !important;
+        border: 1px solid var(--border-input) !important;
+        color: var(--text-main) !important;
         border-radius: 8px !important;
     }}
     [data-testid="stTextInput"] input:focus,
     [data-testid="stNumberInput"] input:focus {{
-        border-color: {THEME["accent"]} !important;
-        box-shadow: 0 0 0 2px rgba(232,51,109,0.12) !important;
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.12) !important;
     }}
 
     .stButton > button {{
-        background: {THEME["accent"]} !important;
-        color: {THEME["bg_primary"]} !important; 
+        background: var(--accent) !important;
+        color: var(--bg-card) !important; 
         border: none !important;
         border-radius: 8px !important;
         font-size: 3rem !important;
@@ -180,53 +179,53 @@ st.markdown(f"""
         transition: opacity 0.15s;
     }}
     .stButton > button p {{
-        color: {THEME["bg_primary"]} !important;
+        color: var(--bg-card) !important;
         font-size: 1.25rem !important;
         font-weight: bold !important;
     }}
-    .stButton > button:hover {{ opacity: {THEME["accent_hover_opacity"]} !important; }}
+    .stButton > button:hover {{ opacity: var(--accent-hover-opacity) !important; }}
     .stButton > button:disabled,
     .stButton > button[disabled] {{
-        background: {THEME["accent_disabled"]} !important;
-        color: {THEME["bg_primary"]} !important;
+        background: var(--accent-disabled) !important;
+        color: var(--bg-card) !important;
         opacity: 1 !important;
         cursor: not-allowed !important;
     }}
     .stButton > button:disabled p,
     .stButton > button[disabled] p {{
-        color: {THEME["bg_primary"]} !important;
+        color: var(--bg-card) !important;
     }}
 
-    [data-testid="stRadio"] label {{ color: {THEME["text_main"]} !important; font-size: 0.85rem; }}
-    [data-testid="stRadio"] p {{ color: {THEME["text_main"]} !important; }}
-    [data-testid="stWidgetLabel"] p {{ color: {THEME["text_main"]} !important; }}
-    label[data-testid="stWidgetLabel"] {{ color: {THEME["text_main"]} !important; }}
-    [data-testid="stMarkdownContainer"] p {{ color: {THEME["text_main"]} !important; }}
+    [data-testid="stRadio"] label {{ color: var(--text-main) !important; font-size: 0.85rem; }}
+    [data-testid="stRadio"] p {{ color: var(--text-main) !important; }}
+    [data-testid="stWidgetLabel"] p {{ color: var(--text-main) !important; }}
+    label[data-testid="stWidgetLabel"] {{ color: var(--text-main) !important; }}
+    [data-testid="stMarkdownContainer"] p {{ color: var(--text-main) !important; }}
 
     [data-testid="stSelectbox"] > div > div {{
-        background-color: {THEME["bg_primary"]} !important;
-        border: 1px solid {THEME["border_input"]} !important;
-        color: {THEME["text_main"]} !important;
+        background-color: var(--bg-card) !important;
+        border: 1px solid var(--border-input) !important;
+        color: var(--text-main) !important;
         border-radius: 8px !important;
     }}
-    [data-testid="stSelectbox"] svg {{ fill: {THEME["text_main"]} !important; }}
-    [data-testid="stSelectbox"] span {{ color: {THEME["text_main"]} !important; }}
+    [data-testid="stSelectbox"] svg {{ fill: var(--text-main) !important; }}
+    [data-testid="stSelectbox"] span {{ color: var(--text-main) !important; }}
 
-    [data-baseweb="popover"] ul {{ background-color: {THEME["bg_primary"]} !important; }}
-    [data-baseweb="popover"] li {{ background-color: {THEME["bg_primary"]} !important; color: {THEME["text_main"]} !important; }}
-    [data-baseweb="popover"] li:hover {{ background-color: {THEME["accent_light"]} !important; }}
+    [data-baseweb="popover"] ul {{ background-color: var(--bg-card) !important; }}
+    [data-baseweb="popover"] li {{ background-color: var(--bg-card) !important; color: var(--text-main) !important; }}
+    [data-baseweb="popover"] li:hover {{ background-color: var(--accent-light) !important; }}
 
     [data-testid="stNumberInput"] button {{
         background: #f0f0f0 !important;
-        color: {THEME["text_main"]} !important;
-        border: 1px solid {THEME["border_input"]} !important;
+        color: var(--text-main) !important;
+        border: 1px solid var(--border-input) !important;
     }}
 
-    [data-testid="block-container"] {{ background-color: {THEME["bg_primary"]} !important; }}
-    section[data-testid="stMain"] {{ background-color: {THEME["bg_primary"]} !important; }}
+    [data-testid="block-container"] {{ background-color: var(--bg-primary) !important; }}
+    section[data-testid="stMain"] {{ background-color: var(--bg-primary) !important; }}
 
     [data-testid="stDataFrame"] {{
-        border: 1px solid {THEME["border"]} !important;
+        border: 1px solid var(--border) !important;
         border-radius: 8px !important;
         overflow: hidden;
     }}
@@ -234,7 +233,6 @@ st.markdown(f"""
     #MainMenu, footer {{ visibility: hidden; }}
 </style>
 """, unsafe_allow_html=True)
-
 # ── Constants ─────────────────────────────────────────────────────────────────
 SPREADSHEET_ID = "19vkOIuehijJoUqx0rr_Z24OMqHGsBVVHkF--2xdBkDM"
 DATA_SHEET = "Sheet1"
@@ -332,8 +330,8 @@ for key, default in [
 # ── Header ────────────────────────────────────────────────────────────────────
 st.markdown(
     f'<div class="pm-title">'
-    f'<span style="color:{THEME["accent"]};">Poly</span>'
-    f'<span style="color:{THEME["text_main"]};">Mix</span>'
+    f'<span style="color:var(--accent);">Poly</span>'
+    f'<span style="color:var(--text-main);">Mix</span>'
     f'</div>',
     unsafe_allow_html=True
 )
