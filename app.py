@@ -17,11 +17,11 @@ THEME = {
     "light_mode": True,          
     
     # 2. Choose your main brand hue (0-360) and saturation (0%-100%)
-    "brand_hue": "200",          # 200 is Sky Blue, 140 is Emerald, 25 is Orange, etc.
+    "brand_hue": "335",          # 200 is Sky Blue, 140 is Emerald, 25 is Orange, etc.
     "brand_saturation": "85%",   
     
     # 3. Choose your text base hue and saturation
-    "text_hue": "225",           # Midnight/dark blue base
+    "text_hue": "360",           # Midnight/dark blue base
     "text_saturation": "35%",
     
     # 4. Static functional colors (will stay constant)
