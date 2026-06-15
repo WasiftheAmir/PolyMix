@@ -4,7 +4,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
-# ── Page config & Theme Configuration ─────────────────────────────────────────
+# ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="PolyMix",
     page_icon="🧪",
@@ -17,11 +17,11 @@ THEME = {
     "light_mode": True,          
     
     # 2. Choose your main brand hue (0-360) and saturation (0%-100%)
-    "brand_hue": "335",          # 340 is deep Pink
-    "brand_saturation": "90%",   
+    "brand_hue": "200",          # 200 is Sky Blue, 140 is Emerald, 25 is Orange, etc.
+    "brand_saturation": "85%",   
     
     # 3. Choose your text base hue and saturation
-    "text_hue": "330",           # Midnight/dark blue base
+    "text_hue": "225",           # Midnight/dark blue base
     "text_saturation": "35%",
     
     # 4. Static functional colors (will stay constant)
@@ -35,10 +35,10 @@ THEME = {
 
 # Mathematically handle the hard white vs hard black rules
 bg_app = "#ffffff" if THEME["light_mode"] else "#000000"
-bg_card = "#ffffff" if THEME["light_mode"] else "#121212" # Sleek dark card contrast
-text_lightness = "11%" if THEME["light_mode"] else "90%"  # Flips text automatically
+bg_card = "#ffffff" if THEME["light_mode"] else "#121212" 
+text_lightness = "11%" if THEME["light_mode"] else "90%"  
 
-# ── Styling (Optimized for Zero-Scroll with Guidance text) ────────────────────
+# ── Styling (Optimized for Responsive Desktop & Mobile layout) ────────────────────
 st.markdown(f"""
 <style>
     :root {{
@@ -240,8 +240,36 @@ st.markdown(f"""
     }}
 
     #MainMenu, footer {{ visibility: hidden; }}
+
+    /* ─── MOBILE SPECIFIC INTERFACE OVERRIDES ─── */
+    @media (max-width: 768px) {{
+        .pm-title {{
+            font-size: 2.2rem !important;
+        }}
+        [data-testid="block-container"] {{
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+        }}
+        [data-testid="column"] {{
+            width: 100% !important;
+            flex: 1 1 100% !important;
+            margin-bottom: 10px !important;
+        }}
+        .stButton > button {{
+            height: 45px !important;
+            line-height: 45px !important;
+        }}
+        .stButton > button p {{
+            font-size: 1.1rem !important;
+        }}
+        .summary-strip {{
+            height: 45px !important;
+            margin-bottom: 10px !important;
+        }}
+    }}
 </style>
 """, unsafe_allow_html=True)
+
 # ── Constants ─────────────────────────────────────────────────────────────────
 SPREADSHEET_ID = "19vkOIuehijJoUqx0rr_Z24OMqHGsBVVHkF--2xdBkDM"
 DATA_SHEET = "Sheet1"
@@ -454,7 +482,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
 
     active_cols = st.session_state.active_cols
 
-    # Ensure every active column has a tracked percentage (e.g. newly added ingredients)
+    # Ensure every active column has a tracked percentage
     for col in active_cols:
         if col not in st.session_state.pct_values:
             st.session_state.pct_values[col] = 0.0
@@ -471,14 +499,23 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
 
     combined_df = pd.DataFrame(display_data, index=["%", "kg"])
 
-    column_config = {
-        c: st.column_config.NumberColumn(c, min_value=0, step=0.1, format="%.3f")
-        for c in combined_df.columns
-    }
+    # Adaptive mobile layout switch
+    layout_mode = st.radio("Interface Mode", ["Standard (Horizontal)", "Mobile (Vertical Transposed)"], horizontal=True, label_visibility="collapsed")
+    is_vertical = (layout_mode == "Mobile (Vertical Transposed)")
 
-    # Key includes a signature of current values so the widget refreshes
-    # whenever percentages, batch size, or the active column set changes
-    state_signature = (tuple(sorted(pct_values.items())), batch_kg, tuple(active_cols))
+    if is_vertical:
+        combined_df = combined_df.T
+        column_config = {
+            "%": st.column_config.NumberColumn("%", min_value=0, step=0.1, format="%.2f"),
+            "kg": st.column_config.NumberColumn("kg", disabled=True, format="%.3f")
+        }
+    else:
+        column_config = {
+            c: st.column_config.NumberColumn(c, min_value=0, step=0.1, format="%.3f")
+            for c in combined_df.columns
+        }
+
+    state_signature = (tuple(sorted(pct_values.items())), batch_kg, tuple(active_cols), is_vertical)
     editor_key = f"recipe_editor_{part_code}_{hash(state_signature)}"
 
     edited_df = st.data_editor(
@@ -488,12 +525,16 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
         key=editor_key
     )
 
-    # Pull edited % values (the kg row is derived, so edits to it are ignored)
+    # Pull edited % values adaptively based on selected layout direction
     new_pct_values = {}
     changed = False
     for col in active_cols:
         display_name = col.replace(" %", "")
-        new_val = float(edited_df.loc["%", display_name])
+        if is_vertical:
+            new_val = float(edited_df.loc[display_name, "%"])
+        else:
+            new_val = float(edited_df.loc["%", display_name])
+            
         new_pct_values[col] = new_val
         if abs(new_val - pct_values[col]) > 1e-9:
             changed = True
@@ -523,7 +564,6 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
             )
         with add_col2:
             if st.button("+ Add", use_container_width=True, key=f"add_ingredient_btn_{part_code}"):
-                # Map display name back to actual column name
                 matching_col = next(c for c in remaining_cols if c.replace(" %", "") == new_ingredient)
                 st.session_state.active_cols.append(matching_col)
                 st.rerun()
@@ -540,7 +580,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
         else:
             st.markdown(f'<div class="pm-warn">⚠ Recipe total is {total_pct*100:.1f}% — {pct_deviation:.1f}% under target.</div>', unsafe_allow_html=True)
 
-    # Action Row: Summary and Logging side by side
+    # Action Row: Summary and Logging side by side (CSS stacks these automatically on mobile)
     bot_col1, bot_col2 = st.columns([1, 1])
     
     with bot_col1:
