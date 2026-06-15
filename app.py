@@ -36,6 +36,7 @@ THEME = {
 # Mathematically handle the hard white vs hard black rules
 bg_app = "#ffffff" if THEME["light_mode"] else "#000000"
 bg_card = "#ffffff" if THEME["light_mode"] else "#121212" 
+bg_neutral = "#f0f0f0" if THEME["light_mode"] else "#2a2a2a"
 text_lightness = "11%" if THEME["light_mode"] else "90%"  
 
 # ── Styling (Optimized for Responsive Desktop & Mobile layout) ────────────────────
@@ -46,12 +47,14 @@ st.markdown(f"""
         --accent: hsl({THEME["brand_hue"]}, {THEME["brand_saturation"]}, 45%);
         --accent-disabled: hsl({THEME["brand_hue"]}, {THEME["brand_saturation"]}, 85%);
         --accent-light: hsl({THEME["brand_hue"]}, {THEME["brand_saturation"]}, 94%);
+        --accent-glow: hsla({THEME["brand_hue"]}, {THEME["brand_saturation"]}, 45%, 0.12);
         --border: hsl({THEME["brand_hue"]}, 40%, 90%);
         --border-input: hsl({THEME["brand_hue"]}, 50%, 85%);
         
         /* --- FIXED BINARY BACKGROUNDS --- */
         --bg-primary: {bg_app}; 
         --bg-card: {bg_card};
+        --bg-neutral: {bg_neutral};
 
         /* --- TEXT DERIVATIONS --- */
         --text-main: hsl({THEME["text_hue"]}, {THEME["text_saturation"]}, {text_lightness});      
@@ -171,7 +174,7 @@ st.markdown(f"""
     [data-testid="stTextInput"] input:focus,
     [data-testid="stNumberInput"] input:focus {{
         border-color: var(--accent) !important;
-        box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.12) !important;
+        box-shadow: 0 0 0 2px var(--accent-glow) !important;
     }}
 
     .stButton > button {{
@@ -225,7 +228,7 @@ st.markdown(f"""
     [data-baseweb="popover"] li:hover {{ background-color: var(--accent-light) !important; }}
 
     [data-testid="stNumberInput"] button {{
-        background: #f0f0f0 !important;
+        background: var(--bg-neutral) !important;
         color: var(--text-main) !important;
         border: 1px solid var(--border-input) !important;
     }}
@@ -434,7 +437,6 @@ if search_term.strip():
             )
             final_row = options[selected_label]
             st.session_state.selected_row = final_row
-            st.session_state.batch_confirmed = False
             
             if has_recipe(final_row):
                 batch_kg = st.number_input(
@@ -451,8 +453,10 @@ if search_term.strip():
         with col2:
             st.markdown(f'<div class="pm-warn">⚠ No parts found. Try a different search term.</div>', unsafe_allow_html=True)
             st.session_state.selected_row = None
+            st.session_state.current_part_code = None
 else:
     st.session_state.selected_row = None
+    st.session_state.current_part_code = None
 
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -467,10 +471,12 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
         unsafe_allow_html=True
     )
 
-    # Reset active ingredient list & percentage values when a different part is selected
+    # Reset active ingredient list, percentage values, and confirmation state
+    # only when a different part is selected (not on every rerun)
     part_code = row.get("Accessories Code", "unknown")
     if st.session_state.current_part_code != part_code:
         st.session_state.current_part_code = part_code
+        st.session_state.batch_confirmed = False
         st.session_state.active_cols = [
             col for col in INGREDIENT_COLS
             if not isinstance(row.get(col, 0), str) and row.get(col, 0) > 0
@@ -607,8 +613,10 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
                 disabled=is_locked
             ):
                 try:
-                    log_batch(row, batch_kg, ingredient_kgs)
+                    with st.spinner("Logging batch..."):
+                        log_batch(row, batch_kg, ingredient_kgs)
                     st.session_state.batch_confirmed = True
+                    st.toast("✓ Batch logged successfully", icon="✅")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Failed to log batch: {e}")
