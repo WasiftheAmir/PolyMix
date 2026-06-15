@@ -15,8 +15,8 @@ st.set_page_config(
 # Centralized Core Color Variables for quick presentation adjustments
 THEME = {
     # 1. Choose your main brand hue (0-360) and saturation (0%-100%)
-    "brand_hue": "200",          # 200 is Sky Blue, 140 is Emerald, 25 is Orange, etc.
-    "brand_saturation": "85%",   
+    "brand_hue": "360",          # 200 is Sky Blue, 140 is Emerald, 25 is Orange, etc.
+    "brand_saturation": "0%",   
     
     # 2. Choose your text base hue and saturation
     "text_hue": "225",           # Midnight/dark blue base
