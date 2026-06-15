@@ -138,7 +138,17 @@ st.markdown("""
         font-weight: bold !important;
     }
     .stButton > button:hover { opacity: 0.88 !important; }
-    .stButton > button:disabled { opacity: 0.4 !important; }
+    .stButton > button:disabled,
+    .stButton > button[disabled] {
+        background: #f3b8cd !important;
+        color: #ffffff !important;
+        opacity: 1 !important;
+        cursor: not-allowed !important;
+    }
+    .stButton > button:disabled p,
+    .stButton > button[disabled] p {
+        color: #ffffff !important;
+    }
 
     [data-testid="stRadio"] label { color: #1a1a1a !important; font-size: 0.85rem; }
     [data-testid="stRadio"] p { color: #1a1a1a !important; }
@@ -500,8 +510,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
                 "Confirm & Log Batch",
                 key="action_log_trigger",
                 use_container_width=True,
-                disabled=is_locked,
-                help="Recipe must total exactly 100% before logging." if is_locked else None
+                disabled=is_locked
             ):
                 try:
                     log_batch(row, batch_kg, ingredient_kgs)
