@@ -12,34 +12,60 @@ st.set_page_config(
 )
 
 # Centralized Color Variables for quick presentation adjustments
+# Centralized Core Color Variables for quick presentation adjustments
 THEME = {
-    "bg_primary": "#ffffff",       # Alice Blue / Sky-tinted light background
-    "bg_card": "#ffffff",          # Clean white cards to pop against the tinted background
-    "border": "#d0e1fd",           # Soft blue border
-    "border_input": "#b9d6fd",      # Defined soft blue input border
-    "text_main": "#111625",        # Deep off-black with a strong midnight blue tint
-    "text_muted": "#62728d",       # Muted slate blue for subtitles and placeholder notes
-    "text_guidance": "#475569",    # Darker slate for explanatory card text
-    "accent": "#0284c7",           # Vivid Sky Blue for branding and action elements
-    "accent_hover_opacity": "0.85",# Hover state transparency
-    "accent_disabled": "#bae6fd",  # Light sky blue background for disabled button
-    "accent_light": "#e0f2fe",     # Soft sky blue item hover highlight
-    "warn_bg": "#fff1f2",          # Warning box background
-    "warn_border": "#fecdd3",      # Warning box border
-    "warn_text": "#9f1239",        # Warning box text
-    "success_bg": "#f0fdf4",       # Success box background
-    "success_border": "#bbf7d0",   # Success box border
-    "success_text": "#166534",     # Success box text
+    # 1. Choose your main brand hue (0-360) and saturation (0%-100%)
+    "brand_hue": "200",          # 200 is Sky Blue
+    "brand_saturation": "85%",   
+    
+    # 2. Choose your text base hue and saturation
+    "text_hue": "225",           # Midnight/dark blue base
+    "text_saturation": "35%",
+    
+    # 3. Static functional colors (will stay constant)
+    "warn_bg": "#fff1f2",
+    "warn_border": "#fecdd3",
+    "warn_text": "#9f1239",
+    "success_bg": "#f0fdf4",
+    "success_border": "#bbf7d0",
+    "success_text": "#166534",
 }
 
 # ── Styling (Dynamic CSS utilizing THEME variables) ──────────────────────────
 st.markdown(f"""
 <style>
+    :root {{
+        /* --- BRAND DERIVATIONS (Sky Blue Base) --- */
+        --accent: hsl({THEME["brand_hue"]}, {THEME["brand_saturation"]}, 45%);
+        --accent-disabled: hsl({THEME["brand_hue"]}, {THEME["brand_saturation"]}, 85%);
+        --accent-light: hsl({THEME["brand_hue"]}, {THEME["brand_saturation"]}, 94%);
+        --border: hsl({THEME["brand_hue"]}, 40%, 90%);
+        --border-input: hsl({THEME["brand_hue"]}, 50%, 85%);
+        --bg-primary: hsl({THEME["brand_hue"]}, 30%, 97%); /* Alice blue tint */
+        --bg-card: #ffffff;
+
+        /* --- TEXT DERIVATIONS (Off-Black/Midnight Blue Base) --- */
+        --text-main: hsl({THEME["text_hue"]}, {THEME["text_saturation"]}, 11%);      /* Main off-black tint */
+        --text-guidance: hsl({THEME["text_hue"]}, {THEME["text_saturation"]}, 35%);  /* Dark slate */
+        --text-muted: hsl({THEME["text_hue"]}, 15%, 55%);                             /* Light slate placeholder */
+
+        /* --- STATIC FUNCTIONAL COLORS --- */
+        --warn-bg: {THEME["warn_bg"]};
+        --warn-border: {THEME["warn_border"]};
+        --warn-text: {THEME["warn_text"]};
+        --success-bg: {THEME["success_bg"]};
+        --success-border: {THEME["success_border"]};
+        --success-text: {THEME["success_text"]};
+        
+        --accent-hover-opacity: 0.85;
+    }}
+
     html, body, [data-testid="stAppViewContainer"] {{
-        background-color: {THEME["bg_primary"]};
-        color: {THEME["text_main"]};
+        background-color: var(--bg-primary);
+        color: var(--text-main);
         font-family: 'Segoe UI', sans-serif;
     }}
+    
     [data-testid="stHeader"] {{ background: transparent; }}
     [data-testid="stSidebar"] {{ display: none; }}
     [data-testid="block-container"] {{
