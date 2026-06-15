@@ -66,12 +66,14 @@ st.markdown("""
     }
 
     .pm-warn {
-        background: #fff5f0;
-        border: 1px solid #f5c0a0;
+        background: #fef2f2;
+        border: 1px solid #fca5a5;
         border-radius: 8px;
         padding: 8px 12px;
-        color: #c05000;
+        color: #b91c1c;
         font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 10px;
     }
 
     .pm-success {
@@ -265,6 +267,7 @@ for key, default in [
     ("batch_confirmed", False),
     ("active_cols", []),
     ("current_part_code", None),
+    ("pct_values", {}),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -372,7 +375,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
         unsafe_allow_html=True
     )
 
-    # Reset active ingredient list when a different part is selected
+    # Reset active ingredient list & percentage values when a different part is selected
     part_code = row.get("Accessories Code", "unknown")
     if st.session_state.current_part_code != part_code:
         st.session_state.current_part_code = part_code
@@ -380,49 +383,68 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
             col for col in INGREDIENT_COLS
             if not isinstance(row.get(col, 0), str) and row.get(col, 0) > 0
         ]
+        st.session_state.pct_values = {
+            col: round(row.get(col, 0) * 100, 2) if not isinstance(row.get(col, 0), str) else 0.0
+            for col in st.session_state.active_cols
+        }
 
     active_cols = st.session_state.active_cols
 
-    # Build editable % row — only active ingredients, as columns (horizontal layout)
-    pct_row_data = {}
+    # Ensure every active column has a tracked percentage (e.g. newly added ingredients)
     for col in active_cols:
-        pct = row.get(col, 0)
-        if isinstance(pct, str):
-            pct = 0
-        pct_row_data[col.replace(" %", "")] = [round(pct * 100, 2)]
+        if col not in st.session_state.pct_values:
+            st.session_state.pct_values[col] = 0.0
 
-    pct_df = pd.DataFrame(pct_row_data, index=["%"])
+    pct_values = st.session_state.pct_values
+
+    # Build combined % / kg table — ingredients as columns, two rows (% and kg)
+    display_data = {}
+    for col in active_cols:
+        display_name = col.replace(" %", "")
+        pct_val = pct_values[col]
+        kg_val = round((pct_val / 100.0) * batch_kg, 3)
+        display_data[display_name] = [pct_val, kg_val]
+
+    combined_df = pd.DataFrame(display_data, index=["%", "kg"])
 
     column_config = {
-        c: st.column_config.NumberColumn(c, min_value=0, max_value=100, step=0.1, format="%.1f%%")
-        for c in pct_df.columns
+        c: st.column_config.NumberColumn(c, min_value=0, step=0.1, format="%.3f")
+        for c in combined_df.columns
     }
 
-    # Key tied to part + active column set so the editor refreshes when columns change
-    editor_key = f"recipe_editor_{part_code}_{len(active_cols)}_{'-'.join(active_cols)}"
+    # Key includes a signature of current values so the widget refreshes
+    # whenever percentages, batch size, or the active column set changes
+    state_signature = (tuple(sorted(pct_values.items())), batch_kg, tuple(active_cols))
+    editor_key = f"recipe_editor_{part_code}_{hash(state_signature)}"
 
-    edited_pct_df = st.data_editor(
-        pct_df,
+    edited_df = st.data_editor(
+        combined_df,
         use_container_width=True,
         column_config=column_config,
         key=editor_key
     )
 
-    # Calculated kg row — derived live from edited percentages
-    kg_row_data = {}
-    ingredient_kgs = {}
-    edited_pcts_decimal = {}
-
+    # Pull edited % values (the kg row is derived, so edits to it are ignored)
+    new_pct_values = {}
+    changed = False
     for col in active_cols:
         display_name = col.replace(" %", "")
-        pct_val = edited_pct_df[display_name].iloc[0] / 100.0
-        edited_pcts_decimal[col] = pct_val
-        kg = round(pct_val * batch_kg, 3)
-        ingredient_kgs[col] = kg
-        kg_row_data[display_name] = [f"{kg:.3f}"]
+        new_val = float(edited_df.loc["%", display_name])
+        new_pct_values[col] = new_val
+        if abs(new_val - pct_values[col]) > 1e-9:
+            changed = True
 
-    kg_df = pd.DataFrame(kg_row_data, index=["kg"])
-    st.dataframe(kg_df, use_container_width=True)
+    if changed:
+        st.session_state.pct_values = new_pct_values
+        st.rerun()
+
+    # Calculate ingredient kg amounts from current percentages
+    ingredient_kgs = {}
+    edited_pcts_decimal = {}
+    for col in active_cols:
+        pct_val = pct_values[col] / 100.0
+        edited_pcts_decimal[col] = pct_val
+        ingredient_kgs[col] = round(pct_val * batch_kg, 3)
 
     # ── Add ingredient control ────────────────────────────────────────────────
     remaining_cols = [c for c in INGREDIENT_COLS if c not in active_cols]
