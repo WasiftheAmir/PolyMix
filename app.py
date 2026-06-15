@@ -11,18 +11,20 @@ st.set_page_config(
     layout="centered",
 )
 
-# Centralized Color Variables for quick presentation adjustments
 # Centralized Core Color Variables for quick presentation adjustments
 THEME = {
-    # 1. Choose your main brand hue (0-360) and saturation (0%-100%)
-    "brand_hue": "360",          # 200 is Sky Blue, 140 is Emerald, 25 is Orange, etc.
-    "brand_saturation": "0%",   
+    # 1. Choose your mode: True for Light (Pure White), False for Dark (Pure Black)
+    "light_mode": True,          
     
-    # 2. Choose your text base hue and saturation
+    # 2. Choose your main brand hue (0-360) and saturation (0%-100%)
+    "brand_hue": "200",          # 200 is Sky Blue, 140 is Emerald, 25 is Orange, etc.
+    "brand_saturation": "85%",   
+    
+    # 3. Choose your text base hue and saturation
     "text_hue": "225",           # Midnight/dark blue base
     "text_saturation": "35%",
     
-    # 3. Static functional colors (will stay constant)
+    # 4. Static functional colors (will stay constant)
     "warn_bg": "#fff1f2",
     "warn_border": "#fecdd3",
     "warn_text": "#9f1239",
@@ -30,6 +32,11 @@ THEME = {
     "success_border": "#bbf7d0",
     "success_text": "#166534",
 }
+
+# Mathematically handle the hard white vs hard black rules
+bg_app = "#ffffff" if THEME["light_mode"] else "#000000"
+bg_card = "#ffffff" if THEME["light_mode"] else "#121212" # Sleek dark card contrast
+text_lightness = "11%" if THEME["light_mode"] else "90%"  # Flips text automatically
 
 # ── Styling (Optimized for Zero-Scroll with Guidance text) ────────────────────
 st.markdown(f"""
@@ -41,13 +48,15 @@ st.markdown(f"""
         --accent-light: hsl({THEME["brand_hue"]}, {THEME["brand_saturation"]}, 94%);
         --border: hsl({THEME["brand_hue"]}, 40%, 90%);
         --border-input: hsl({THEME["brand_hue"]}, 50%, 85%);
-        --bg-primary: hsl({THEME["brand_hue"]}, 30%, 97%); 
-        --bg-card: #ffffff;
+        
+        /* --- FIXED BINARY BACKGROUNDS --- */
+        --bg-primary: {bg_app}; 
+        --bg-card: {bg_card};
 
         /* --- TEXT DERIVATIONS --- */
-        --text-main: hsl({THEME["text_hue"]}, {THEME["text_saturation"]}, 11%);      
-        --text-guidance: hsl({THEME["text_hue"]}, {THEME["text_saturation"]}, 35%);  
-        --text-muted: hsl({THEME["text_hue"]}, 15%, 55%);                             
+        --text-main: hsl({THEME["text_hue"]}, {THEME["text_saturation"]}, {text_lightness});      
+        --text-guidance: hsl({THEME["text_hue"]}, {THEME["text_saturation"]}, 45%);  
+        --text-muted: hsl({THEME["text_hue"]}, 15%, 60%);                             
 
         /* --- STATIC FUNCTIONAL COLORS --- */
         --warn-bg: {THEME["warn_bg"]};
