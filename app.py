@@ -620,14 +620,15 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
                     st.rerun()
                 except Exception as e:
                     st.error(f"Failed to log batch: {e}")
+        else:
+            if st.button("Start New Batch", use_container_width=True):
+                st.session_state.batch_confirmed = False
+                st.rerun()
 
-    # Full-width success message & "Start New Batch" button below the action row
+    # Full-width success message below the action row
     if st.session_state.batch_confirmed:
         ts = datetime.now().strftime("%H:%M")
         st.markdown(f'<div class="pm-success" style="margin-top:10px;">✓ Batch logged successfully · {ts}</div>', unsafe_allow_html=True)
-        if st.button("Start New Batch", use_container_width=True):
-            st.session_state.batch_confirmed = False
-            st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
 
