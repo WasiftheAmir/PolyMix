@@ -14,7 +14,7 @@ st.set_page_config(
 # Centralized Core Color Variables for quick presentation adjustments
 THEME = {
     # 1. Choose your mode: True for Light (Pure White), False for Dark (Pure Black)
-    "light_mode": True,          
+    "light_mode": False,          
     
     # 2. Choose your main brand hue (0-360) and saturation (0%-100%)
     "brand_hue": "200",          # 200 is Sky Blue, 140 is Emerald, 25 is Orange, etc.
