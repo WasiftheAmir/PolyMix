@@ -13,22 +13,22 @@ st.set_page_config(
 
 # Centralized Color Variables for quick presentation adjustments
 THEME = {
-    "bg_primary": "#ffffff",       # Main app background
-    "bg_card": "#fafafa",          # Section card backgrounds
-    "border": "#ebebeb",           # Subtle borders
-    "border_input": "#ddd",        # Input field borders
-    "text_main": "#1a1a1a",        # Primary typography
-    "text_muted": "#999",          # Subtitles and placeholder notes
-    "text_guidance": "#666",       # Explanatory card text
-    "accent": "#e8336d",           # PolyMix branding / Action elements
-    "accent_hover_opacity": "0.88",# Hover state transparency
-    "accent_disabled": "#f3b8cd",  # Disabled button background
-    "accent_light": "#fce7ef",     # Selectbox item hover highlight
-    "warn_bg": "#fef2f2",          # Warning box background
-    "warn_border": "#fca5a5",      # Warning box border
-    "warn_text": "#b91c1c",        # Warning box text
+    "bg_primary": "#f0f8ff",       # Alice Blue / Sky-tinted light background
+    "bg_card": "#ffffff",          # Clean white cards to pop against the tinted background
+    "border": "#d0e1fd",           # Soft blue border
+    "border_input": "#b9d6fd",      # Defined soft blue input border
+    "text_main": "#111625",        # Deep off-black with a strong midnight blue tint
+    "text_muted": "#62728d",       # Muted slate blue for subtitles and placeholder notes
+    "text_guidance": "#475569",    # Darker slate for explanatory card text
+    "accent": "#0284c7",           # Vivid Sky Blue for branding and action elements
+    "accent_hover_opacity": "0.85",# Hover state transparency
+    "accent_disabled": "#bae6fd",  # Light sky blue background for disabled button
+    "accent_light": "#e0f2fe",     # Soft sky blue item hover highlight
+    "warn_bg": "#fff1f2",          # Warning box background
+    "warn_border": "#fecdd3",      # Warning box border
+    "warn_text": "#9f1239",        # Warning box text
     "success_bg": "#f0fdf4",       # Success box background
-    "success_border": "#86efac",   # Success box border
+    "success_border": "#bbf7d0",   # Success box border
     "success_text": "#166534",     # Success box text
 }
 
