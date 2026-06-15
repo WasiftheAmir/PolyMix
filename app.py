@@ -18,10 +18,10 @@ THEME = {
     
     # 2. Choose your main brand hue (0-360) and saturation (0%-100%)
     "brand_hue": "340",          # 340 is deep Pink
-    "brand_saturation": "80%",   
+    "brand_saturation": "90%",   
     
     # 3. Choose your text base hue and saturation
-    "text_hue": "300",           # Midnight/dark blue base
+    "text_hue": "330",           # Midnight/dark blue base
     "text_saturation": "35%",
     
     # 4. Static functional colors (will stay constant)
