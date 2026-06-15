@@ -17,8 +17,8 @@ THEME = {
     "light_mode": True,          
     
     # 2. Choose your main brand hue (0-360) and saturation (0%-100%)
-    "brand_hue": "190",          # 340 is deep Pink
-    "brand_saturation": "85%",   
+    "brand_hue": "330",          # 340 is deep Pink
+    "brand_saturation": "75%",   
     
     # 3. Choose your text base hue and saturation
     "text_hue": "225",           # Midnight/dark blue base
