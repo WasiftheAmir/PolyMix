@@ -74,20 +74,6 @@ st.markdown("""
         font-size: 0.85rem;
     }
 
-    .summary-strip {
-        background: #e8336d;
-        border-radius: 8px;
-        padding: 0px 16px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        height: 50px;
-        width: 100%; /* Force full container width */
-        box-sizing: border-box;
-    }
-    .summary-strip-label { font-size: 0.72rem; color: rgba(255,255,255,0.85); line-height: 1.1; }
-    .summary-strip-val { font-size: 1.05rem; font-weight: 800; color: #fff; line-height: 1.2; }
-
     .pm-success {
         background: #f0fdf4;
         border: 1px solid #86efac;
@@ -100,9 +86,23 @@ st.markdown("""
         align-items: center;
         justify-content: center;
         height: 50px;
-        width: 100%; /* Force full container width */
+        width: 100%;
         box-sizing: border-box;
     }
+
+    .summary-strip {
+        background: #e8336d;
+        border-radius: 8px;
+        padding: 0px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 50px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .summary-strip-label { font-size: 0.72rem; color: rgba(255,255,255,0.85); line-height: 1.1; }
+    .summary-strip-val { font-size: 1.05rem; font-weight: 800; color: #fff; line-height: 1.2; }
 
     [data-testid="stTextInput"] input,
     [data-testid="stNumberInput"] input {
@@ -117,7 +117,6 @@ st.markdown("""
         box-shadow: 0 0 0 2px rgba(232,51,109,0.12) !important;
     }
 
-    /* Core Action Button Overrides */
     .stButton > button {
         background: #e8336d !important;
         color: #ffffff !important; 
@@ -125,7 +124,7 @@ st.markdown("""
         border-radius: 8px !important;
         font-size: 3rem !important;
         font-weight: bold !important;
-        width: 100% !important; /* Ensure the button element fills its parent */
+        width: 100% !important;
         height: 50px !important;
         line-height: 50px !important;
         padding: 0 !important; 
@@ -243,6 +242,7 @@ def log_batch(row_data: dict, batch_kg: float, ingredient_kgs: dict):
         log_row.append(round(ingredient_kgs.get(col, 0), 3) if ingredient_kgs.get(col, 0) > 0 else "")
     ws.append_row(log_row, value_input_option="USER_ENTERED")
 
+@st.cache_data(ttl=60, show_spinner=False)
 def load_recent_logs():
     gc = get_gc()
     sh = gc.open_by_key(SPREADSHEET_ID)
@@ -263,6 +263,7 @@ def has_recipe(row) -> bool:
 for key, default in [
     ("selected_row", None),
     ("batch_confirmed", False),
+    ("edited_percentages", {}),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -337,6 +338,8 @@ if search_term.strip():
             )
             final_row = options[selected_label]
             st.session_state.selected_row = final_row
+            st.session_state.batch_confirmed = False
+            st.session_state.edited_percentages = {}
             
             if has_recipe(final_row):
                 batch_kg = st.number_input(
@@ -358,46 +361,90 @@ else:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ── STEP 3 & 4: Transposed Recipe Breakdown & Confirmation (Combined) ────────
+# ── STEP 3 & 4: Editable Recipe Breakdown & Confirmation ──────────────────────
 if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
     row = st.session_state.selected_row
 
     st.markdown(
         '<div class="pm-card">'
         '<div class="pm-card-title">Recipe Breakdown & Logging</div>'
-        '<div class="pm-card-guidance">Weigh ingredients precisely as shown below. Verify totals before recording the run. <span class="pm-card-example">(e.g., Ensure Total Weight matches target batch size)</span></div>',
+        '<div class="pm-card-guidance">Adjust ingredient percentages if needed (e.g., excess recycled chips, recipe tweaks). Verify totals equal 100% before confirming. <span class="pm-card-example">(Edited recipes log but do not change the masterfile)</span></div>',
         unsafe_allow_html=True
     )
 
-    columns = ["Metric"]
-    pct_row = ["%"]
-    kg_row = ["Amount (kg)"]
-    ingredient_kgs = {}
-
+    # Build editable dataframe
+    edit_data = []
     for col in INGREDIENT_COLS:
         pct = row.get(col, 0)
         if isinstance(pct, str):
             pct = 0
-        if pct > 0:
-            kg = round(pct * batch_kg, 3)
-            ingredient_kgs[col] = kg
-            columns.append(col.replace(" %", ""))
-            pct_row.append(f"{pct*100:.1f}%")
-            kg_row.append(f"{kg:.3f}")
+        # Use edited value if exists, otherwise use original
+        display_pct = st.session_state.edited_percentages.get(col, pct) * 100
+        edit_data.append({
+            "Ingredient": col.replace(" %", ""),
+            "%": display_pct,
+        })
 
-    total_pct = sum(row.get(c, 0) for c in INGREDIENT_COLS if isinstance(row.get(c, 0), float) and row.get(c, 0) > 0)
-    total_kg = sum(ingredient_kgs.values())
-
-    transposed_df = pd.DataFrame([pct_row, kg_row], columns=columns)
+    edit_df = pd.DataFrame(edit_data)
     
-    st.dataframe(
-        transposed_df,
+    # Only show rows where ingredient is present in original recipe or has been edited
+    edit_df_filtered = edit_df[
+        (edit_df["%"] > 0) | 
+        (edit_df["Ingredient"].isin([col.replace(" %", "") for col in st.session_state.edited_percentages.keys()]))
+    ].copy()
+    
+    # If no ingredients, show all rows with 0
+    if edit_df_filtered.empty:
+        edit_df_filtered = edit_df[edit_df["%"] > 0].copy()
+
+    edited_df = st.data_editor(
+        edit_df_filtered,
         use_container_width=True,
         hide_index=True,
+        column_config={
+            "%": st.column_config.NumberColumn(
+                "%",
+                min_value=0,
+                max_value=100,
+                step=0.1,
+                format="%.1f%%"
+            )
+        },
+        key="recipe_editor"
     )
 
-    if abs(total_pct - 1.0) > 0.02:
-        st.markdown(f'<div class="pm-warn" style="margin-top:6px; margin-bottom:6px;">⚠ Recipe total is {total_pct*100:.1f}% — does not add up to 100%.</div>', unsafe_allow_html=True)
+    # Recalculate with edited values
+    ingredient_kgs = {}
+    edited_pcts_decimal = {}
+    
+    for idx, row_edit in edited_df.iterrows():
+        ing_name = row_edit["Ingredient"]
+        pct_val = row_edit["%"] / 100.0
+        
+        # Find matching ingredient column
+        matching_col = None
+        for col in INGREDIENT_COLS:
+            if col.replace(" %", "") == ing_name:
+                matching_col = col
+                break
+        
+        if matching_col:
+            edited_pcts_decimal[matching_col] = pct_val
+            kg = round(pct_val * batch_kg, 3)
+            if kg > 0:
+                ingredient_kgs[matching_col] = kg
+
+    # Calculate totals with edited percentages
+    total_pct = sum(edited_pcts_decimal.values())
+    total_kg = sum(ingredient_kgs.values())
+    pct_deviation = (total_pct - 1.0) * 100
+
+    # Warning if total doesn't equal 100%
+    if abs(pct_deviation) > 0.01:
+        if pct_deviation > 0:
+            st.markdown(f'<div class="pm-warn">⚠ Recipe total is {total_pct*100:.1f}% — {pct_deviation:+.1f}% over target.</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="pm-warn">⚠ Recipe total is {total_pct*100:.1f}% — {pct_deviation:.1f}% under target.</div>', unsafe_allow_html=True)
 
     # Action Row: Summary and Logging side by side
     bot_col1, bot_col2 = st.columns([1, 1])
@@ -418,7 +465,6 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
 
     with bot_col2:
         if not st.session_state.batch_confirmed:
-            # use_container_width added here
             if st.button("Confirm & Log Batch", key="action_log_trigger", use_container_width=True):
                 try:
                     log_batch(row, batch_kg, ingredient_kgs)
@@ -429,9 +475,9 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
         else:
             ts = datetime.now().strftime("%H:%M")
             st.markdown(f'<div class="pm-success">✓ Batch logged successfully · {ts}</div>', unsafe_allow_html=True)
-            # use_container_width added here
             if st.button("Start New Batch", use_container_width=True):
                 st.session_state.batch_confirmed = False
+                st.session_state.edited_percentages = {}
                 st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
