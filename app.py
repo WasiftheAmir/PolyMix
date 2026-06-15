@@ -4,29 +4,30 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
-# ── Native Mobile Interface Auto-Detection ───────────────────────────────────
-# Catches screen width using query params. If missing, it checks window size.
-is_mobile_by_url = st.query_params.get("mobile") == "true"
-
-if "mobile" not in st.query_params:
-    st.components.v1.html(
-        """
-        <script>
-            const isMobile = window.innerWidth < 768;
-            const currentUrl = new URL(window.parent.location.href);
-            currentUrl.searchParams.set("mobile", isMobile);
-            window.parent.location.href = currentUrl.toString();
-        </script>
-        """,
-        height=0,
-        width=0
-    )
-
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="PolyMix",
     page_icon="🧪",
     layout="centered",
+)
+
+# ── Native Mobile Interface Auto-Detection (CORS Bypass) ─────────────────────
+is_vertical = st.query_params.get("mobile") == "true"
+
+# Inject JS directly into the root frame to avoid iframe sandbox restrictions
+st.markdown(
+    """
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" 
+         onload="
+            const isMobile = window.innerWidth < 768;
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('mobile') !== String(isMobile)) {
+                params.set('mobile', isMobile);
+                window.location.search = params.toString();
+            }
+         " style="display:none;">
+    """,
+    unsafe_allow_html=True
 )
 
 # Centralized Core Color Variables for quick presentation adjustments
@@ -518,8 +519,6 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
     combined_df = pd.DataFrame(display_data, index=["%", "kg"])
 
     # Responsive layout parsing based on url-caught mobile state
-    is_vertical = is_mobile_by_url
-
     if is_vertical:
         combined_df = combined_df.T
         column_config = {
@@ -542,7 +541,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
         key=editor_key
     )
 
-    # Pull edited % values adaptively based on auto-detected layout direction
+    # Pull edited % values adaptively based on layout direction
     new_pct_values = {}
     changed = False
     for col in active_cols:
