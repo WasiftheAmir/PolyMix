@@ -4,84 +4,105 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
-# ── Page config ───────────────────────────────────────────────────────────────
+# ── Page config & Theme Configuration ─────────────────────────────────────────
 st.set_page_config(
     page_title="PolyMix",
     page_icon="🧪",
     layout="centered",
 )
 
-# ── Styling (Optimized for Zero-Scroll with Guidance text) ────────────────────
-st.markdown("""
+# Centralized Color Variables for quick presentation adjustments
+THEME = {
+    "bg_primary": "#ffffff",       # Main app background
+    "bg_card": "#fafafa",          # Section card backgrounds
+    "border": "#ebebeb",           # Subtle borders
+    "border_input": "#ddd",        # Input field borders
+    "text_main": "#1a1a1a",        # Primary typography
+    "text_muted": "#999",          # Subtitles and placeholder notes
+    "text_guidance": "#666",       # Explanatory card text
+    "accent": "#e8336d",           # PolyMix branding / Action elements
+    "accent_hover_opacity": "0.88",# Hover state transparency
+    "accent_disabled": "#f3b8cd",  # Disabled button background
+    "accent_light": "#fce7ef",     # Selectbox item hover highlight
+    "warn_bg": "#fef2f2",          # Warning box background
+    "warn_border": "#fca5a5",      # Warning box border
+    "warn_text": "#b91c1c",        # Warning box text
+    "success_bg": "#f0fdf4",       # Success box background
+    "success_border": "#86efac",   # Success box border
+    "success_text": "#166534",     # Success box text
+}
+
+# ── Styling (Dynamic CSS utilizing THEME variables) ──────────────────────────
+st.markdown(f"""
 <style>
-    html, body, [data-testid="stAppViewContainer"] {
-        background-color: #ffffff;
-        color: #1a1a1a;
+    html, body, [data-testid="stAppViewContainer"] {{
+        background-color: {THEME["bg_primary"]};
+        color: {THEME["text_main"]};
         font-family: 'Segoe UI', sans-serif;
-    }
-    [data-testid="stHeader"] { background: transparent; }
-    [data-testid="stSidebar"] { display: none; }
-    [data-testid="block-container"] {
+    }}
+    [data-testid="stHeader"] {{ background: transparent; }}
+    [data-testid="stSidebar"] {{ display: none; }}
+    [data-testid="block-container"] {{
         padding-top: 1.2rem !important;
         padding-bottom: 1rem !important;
-    }
+    }}
 
-    .pm-title {
+    .pm-title {{
         font-size: 3.2rem;
         font-weight: 800;
         letter-spacing: -0.5px;
         margin-bottom: 0;
-    }
-    .pm-subtitle {
+    }}
+    .pm-subtitle {{
         font-size: 0.85rem;
-        color: #999;
+        color: {THEME["text_muted"]};
         margin-top: 1px;
         margin-bottom: 12px;
-    }
+    }}
 
-    .pm-card {
-        background: #fafafa;
-        border: 1px solid #ebebeb;
+    .pm-card {{
+        background: {THEME["bg_card"]};
+        border: 1px solid {THEME["border"]};
         border-radius: 12px;
         padding: 12px 16px;
         margin-bottom: 10px;
-    }
-    .pm-card-title {
+    }}
+    .pm-card-title {{
         font-size: 0.72rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 1.2px;
-        color: #e8336d;
+        color: {THEME["accent"]};
         margin-bottom: 2px;
-    }
-    .pm-card-guidance {
+    }}
+    .pm-card-guidance {{
         font-size: 0.78rem;
-        color: #666;
+        color: {THEME["text_guidance"]};
         margin-bottom: 10px;
         line-height: 1.3;
-    }
-    .pm-card-example {
-        color: #999;
+    }}
+    .pm-card-example {{
+        color: {THEME["text_muted"]};
         font-style: italic;
-    }
+    }}
 
-    .pm-warn {
-        background: #fef2f2;
-        border: 1px solid #fca5a5;
+    .pm-warn {{
+        background: {THEME["warn_bg"]};
+        border: 1px solid {THEME["warn_border"]};
         border-radius: 8px;
         padding: 8px 12px;
-        color: #b91c1c;
+        color: {THEME["warn_text"]};
         font-size: 0.85rem;
         font-weight: 600;
         margin-bottom: 10px;
-    }
+    }}
 
-    .pm-success {
-        background: #f0fdf4;
-        border: 1px solid #86efac;
+    .pm-success {{
+        background: {THEME["success_bg"]};
+        border: 1px solid {THEME["success_border"]};
         border-radius: 8px;
         padding: 0px 14px;
-        color: #166534;
+        color: {THEME["success_text"]};
         font-weight: 600;
         font-size: 0.9rem;
         display: flex;
@@ -90,10 +111,10 @@ st.markdown("""
         height: 50px;
         width: 100%;
         box-sizing: border-box;
-    }
+    }}
 
-    .summary-strip {
-        background: #e8336d;
+    .summary-strip {{
+        background: {THEME["accent"]};
         border-radius: 8px;
         padding: 0px 16px;
         display: flex;
@@ -102,26 +123,26 @@ st.markdown("""
         height: 50px;
         width: 100%;
         box-sizing: border-box;
-    }
-    .summary-strip-label { font-size: 0.72rem; color: rgba(255,255,255,0.85); line-height: 1.1; }
-    .summary-strip-val { font-size: 1.05rem; font-weight: 800; color: #fff; line-height: 1.2; }
+    }}
+    .summary-strip-label {{ font-size: 0.72rem; color: rgba(255,255,255,0.85); line-height: 1.1; }}
+    .summary-strip-val {{ font-size: 1.05rem; font-weight: 800; color: #fff; line-height: 1.2; }}
 
     [data-testid="stTextInput"] input,
-    [data-testid="stNumberInput"] input {
-        background: #ffffff !important;
-        border: 1px solid #ddd !important;
-        color: #1a1a1a !important;
+    [data-testid="stNumberInput"] input {{
+        background: {THEME["bg_primary"]} !important;
+        border: 1px solid {THEME["border_input"]} !important;
+        color: {THEME["text_main"]} !important;
         border-radius: 8px !important;
-    }
+    }}
     [data-testid="stTextInput"] input:focus,
-    [data-testid="stNumberInput"] input:focus {
-        border-color: #e8336d !important;
+    [data-testid="stNumberInput"] input:focus {{
+        border-color: {THEME["accent"]} !important;
         box-shadow: 0 0 0 2px rgba(232,51,109,0.12) !important;
-    }
+    }}
 
-    .stButton > button {
-        background: #e8336d !important;
-        color: #ffffff !important; 
+    .stButton > button {{
+        background: {THEME["accent"]} !important;
+        color: {THEME["bg_primary"]} !important; 
         border: none !important;
         border-radius: 8px !important;
         font-size: 3rem !important;
@@ -131,60 +152,60 @@ st.markdown("""
         line-height: 50px !important;
         padding: 0 !important; 
         transition: opacity 0.15s;
-    }
-    .stButton > button p {
-        color: #ffffff !important;
+    }}
+    .stButton > button p {{
+        color: {THEME["bg_primary"]} !important;
         font-size: 1.25rem !important;
         font-weight: bold !important;
-    }
-    .stButton > button:hover { opacity: 0.88 !important; }
+    }}
+    .stButton > button:hover {{ opacity: {THEME["accent_hover_opacity"]} !important; }}
     .stButton > button:disabled,
-    .stButton > button[disabled] {
-        background: #f3b8cd !important;
-        color: #ffffff !important;
+    .stButton > button[disabled] {{
+        background: {THEME["accent_disabled"]} !important;
+        color: {THEME["bg_primary"]} !important;
         opacity: 1 !important;
         cursor: not-allowed !important;
-    }
+    }}
     .stButton > button:disabled p,
-    .stButton > button[disabled] p {
-        color: #ffffff !important;
-    }
+    .stButton > button[disabled] p {{
+        color: {THEME["bg_primary"]} !important;
+    }}
 
-    [data-testid="stRadio"] label { color: #1a1a1a !important; font-size: 0.85rem; }
-    [data-testid="stRadio"] p { color: #1a1a1a !important; }
-    [data-testid="stWidgetLabel"] p { color: #1a1a1a !important; }
-    label[data-testid="stWidgetLabel"] { color: #1a1a1a !important; }
-    [data-testid="stMarkdownContainer"] p { color: #1a1a1a !important; }
+    [data-testid="stRadio"] label {{ color: {THEME["text_main"]} !important; font-size: 0.85rem; }}
+    [data-testid="stRadio"] p {{ color: {THEME["text_main"]} !important; }}
+    [data-testid="stWidgetLabel"] p {{ color: {THEME["text_main"]} !important; }}
+    label[data-testid="stWidgetLabel"] {{ color: {THEME["text_main"]} !important; }}
+    [data-testid="stMarkdownContainer"] p {{ color: {THEME["text_main"]} !important; }}
 
-    [data-testid="stSelectbox"] > div > div {
-        background-color: #ffffff !important;
-        border: 1px solid #ddd !important;
-        color: #1a1a1a !important;
+    [data-testid="stSelectbox"] > div > div {{
+        background-color: {THEME["bg_primary"]} !important;
+        border: 1px solid {THEME["border_input"]} !important;
+        color: {THEME["text_main"]} !important;
         border-radius: 8px !important;
-    }
-    [data-testid="stSelectbox"] svg { fill: #1a1a1a !important; }
-    [data-testid="stSelectbox"] span { color: #1a1a1a !important; }
+    }}
+    [data-testid="stSelectbox"] svg {{ fill: {THEME["text_main"]} !important; }}
+    [data-testid="stSelectbox"] span {{ color: {THEME["text_main"]} !important; }}
 
-    [data-baseweb="popover"] ul { background-color: #ffffff !important; }
-    [data-baseweb="popover"] li { background-color: #ffffff !important; color: #1a1a1a !important; }
-    [data-baseweb="popover"] li:hover { background-color: #fce7ef !important; }
+    [data-baseweb="popover"] ul {{ background-color: {THEME["bg_primary"]} !important; }}
+    [data-baseweb="popover"] li {{ background-color: {THEME["bg_primary"]} !important; color: {THEME["text_main"]} !important; }}
+    [data-baseweb="popover"] li:hover {{ background-color: {THEME["accent_light"]} !important; }}
 
-    [data-testid="stNumberInput"] button {
+    [data-testid="stNumberInput"] button {{
         background: #f0f0f0 !important;
-        color: #1a1a1a !important;
-        border: 1px solid #ddd !important;
-    }
+        color: {THEME["text_main"]} !important;
+        border: 1px solid {THEME["border_input"]} !important;
+    }}
 
-    [data-testid="block-container"] { background-color: #ffffff !important; }
-    section[data-testid="stMain"] { background-color: #ffffff !important; }
+    [data-testid="block-container"] {{ background-color: {THEME["bg_primary"]} !important; }}
+    section[data-testid="stMain"] {{ background-color: {THEME["bg_primary"]} !important; }}
 
-    [data-testid="stDataFrame"] {
-        border: 1px solid #ebebeb !important;
+    [data-testid="stDataFrame"] {{
+        border: 1px solid {THEME["border"]} !important;
         border-radius: 8px !important;
         overflow: hidden;
-    }
+    }}
 
-    #MainMenu, footer { visibility: hidden; }
+    #MainMenu, footer {{ visibility: hidden; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -284,10 +305,10 @@ for key, default in [
 
 # ── Header ────────────────────────────────────────────────────────────────────
 st.markdown(
-    '<div class="pm-title">'
-    '<span style="color:#e8336d;">Poly</span>'
-    '<span style="color:#1a1a1a;">Mix</span>'
-    '</div>',
+    f'<div class="pm-title">'
+    f'<span style="color:{THEME["accent"]};">Poly</span>'
+    f'<span style="color:{THEME["text_main"]};">Mix</span>'
+    f'</div>',
     unsafe_allow_html=True
 )
 st.markdown('<div class="pm-subtitle">ACI Premio Plastics · Batch Recipe Calculator</div>', unsafe_allow_html=True)
@@ -364,10 +385,10 @@ if search_term.strip():
                     format="%.1f",
                 )
             else:
-                st.markdown('<div class="pm-warn">⚠ No recipe data available for this selection.</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="pm-warn">⚠ No recipe data available for this selection.</div>', unsafe_allow_html=True)
     else:
         with col2:
-            st.markdown('<div class="pm-warn">⚠ No parts found. Try a different search term.</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="pm-warn">⚠ No parts found. Try a different search term.</div>', unsafe_allow_html=True)
             st.session_state.selected_row = None
 else:
     st.session_state.selected_row = None
