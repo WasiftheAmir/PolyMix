@@ -11,20 +11,31 @@ st.set_page_config(
     layout="centered",
 )
 
+# ── Native Mobile Interface Auto-Detection (CORS Bypass) ─────────────────────
+is_vertical = st.query_params.get("mobile") == "true"
+
+st.markdown(
+    """
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" 
+         onload="
+            const isMobile = window.innerWidth < 768;
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('mobile') !== String(isMobile)) {
+                params.set('mobile', isMobile);
+                window.location.search = params.toString();
+            }
+         " style="display:none;">
+    """,
+    unsafe_allow_html=True
+)
+
 # Centralized Core Color Variables for quick presentation adjustments
 THEME = {
-    # 1. Choose your mode: True for Light (Pure White), False for Dark (Pure Black)
     "light_mode": True,          
-    
-    # 2. Choose your main brand hue (0-360) and saturation (0%-100%)
-    "brand_hue": "335",          # 200 is Sky Blue, 140 is Emerald, 25 is Orange, etc.
+    "brand_hue": "200",          
     "brand_saturation": "85%",   
-    
-    # 3. Choose your text base hue and saturation
-    "text_hue": "360",           # Midnight/dark blue base
+    "text_hue": "225",           
     "text_saturation": "35%",
-    
-    # 4. Static functional colors (will stay constant)
     "warn_bg": "#fff1f2",
     "warn_border": "#fecdd3",
     "warn_text": "#9f1239",
@@ -33,7 +44,6 @@ THEME = {
     "success_text": "#166534",
 }
 
-# Mathematically handle the hard white vs hard black rules
 bg_app = "#ffffff" if THEME["light_mode"] else "#000000"
 bg_card = "#ffffff" if THEME["light_mode"] else "#121212" 
 text_lightness = "11%" if THEME["light_mode"] else "90%"  
@@ -135,16 +145,12 @@ st.markdown(f"""
         background: var(--success-bg);
         border: 1px solid var(--success-border);
         border-radius: 8px;
-        padding: 0px 14px;
+        padding: 8px 12px;
         color: var(--success-text);
+        font-size: 0.85rem;
         font-weight: 600;
-        font-size: 0.9rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 50px;
-        width: 100%;
-        box-sizing: border-box;
+        margin-top: 10px;
+        margin-bottom: 5px;
     }}
 
     .summary-strip {{
@@ -489,7 +495,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
 
     pct_values = st.session_state.pct_values
 
-    # Build combined % / kg table — ingredients as columns, two rows (% and kg)
+    # Build combined % / kg table
     display_data = {}
     for col in active_cols:
         display_name = col.replace(" %", "")
@@ -499,10 +505,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
 
     combined_df = pd.DataFrame(display_data, index=["%", "kg"])
 
-    # Adaptive mobile layout switch
-    layout_mode = st.radio("Interface Mode", ["Standard (Horizontal)", "Mobile (Vertical Transposed)"], horizontal=True, label_visibility="collapsed")
-    is_vertical = (layout_mode == "Mobile (Vertical Transposed)")
-
+    # Responsive layout parsing based on url-caught mobile state
     if is_vertical:
         combined_df = combined_df.T
         column_config = {
@@ -525,7 +528,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
         key=editor_key
     )
 
-    # Pull edited % values adaptively based on selected layout direction
+    # Pull edited % values adaptively based on layout direction
     new_pct_values = {}
     changed = False
     for col in active_cols:
@@ -613,11 +616,14 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
                 except Exception as e:
                     st.error(f"Failed to log batch: {e}")
         else:
-            ts = datetime.now().strftime("%H:%M")
-            st.markdown(f'<div class="pm-success">✓ Batch logged successfully · {ts}</div>', unsafe_allow_html=True)
             if st.button("Start New Batch", use_container_width=True):
                 st.session_state.batch_confirmed = False
                 st.rerun()
+
+    # Persistent confirmation block loaded right underneath action variables
+    if st.session_state.batch_confirmed:
+        ts = datetime.now().strftime("%H:%M")
+        st.markdown(f'<div class="pm-success">✓ Batch logged successfully to master file · Ready for mixing at {ts}</div>', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -631,7 +637,13 @@ st.markdown(
 recent_logs_df = load_recent_logs()
 
 if not recent_logs_df.empty:
+    # Safely clean out entirely empty structural rows 
     columns_to_keep = [col for col in recent_logs_df.columns if not recent_logs_df[col].astype(str).str.strip().eq('').all()]
+    
+    # Intentionally bypass presenting 'Part Name' on-screen while retaining all other columns
+    if "Part Name" in columns_to_keep:
+        columns_to_keep.remove("Part Name")
+        
     st.dataframe(
         recent_logs_df[columns_to_keep],
         use_container_width=True,
