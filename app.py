@@ -333,7 +333,9 @@ def ensure_log_sheet(log_sheet_name):
 
 def log_batch(row_data: dict, batch_kg: float, ingredient_kgs: dict, factory_label: str, log_sheet_name: str):
     ws = ensure_log_sheet(log_sheet_name)
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    from datetime import datetime, timezone, timedelta
+    BD_TZ = timezone(timedelta(hours=6))
+    now = datetime.now(BD_TZ).strftime("%Y-%m-%d %H:%M:%S")
     log_row = [
         now,
         factory_label,
