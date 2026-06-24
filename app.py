@@ -276,7 +276,18 @@ st.markdown(f"""
 # ── Constants ─────────────────────────────────────────────────────────────────
 SPREADSHEET_ID = "19vkOIuehijJoUqx0rr_Z24OMqHGsBVVHkF--2xdBkDM"
 DATA_SHEET = "Sheet1"
-LOG_SHEET = "Batch Log"
+
+FACTORY_OPTIONS = {
+    "Narayanganj (NG)": "Batch Log — NG",
+    "N Poly":           "Batch Log — NPoly",
+}
+
+LOG_HEADERS = [
+    "Timestamp", "Factory", "Part Name", "Accessories Code",
+    "Accessories Name", "Base Color", "Batch Size (kg)"
+] + ["PPHP", "PPCP", "Chips %", "Compound %",
+     "LDP", "ABS", "PC", "GPPS", "TPR", "RCP",
+     "Dessicant", "Perfume MB", "Additive", "Filler", "MB"]
 
 INGREDIENT_COLS = [
     "PPHP", "PPCP", "Chips %", "Compound %",
@@ -286,7 +297,7 @@ INGREDIENT_COLS = [
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/drive",
 ]
 
 # ── Google Sheets helpers ─────────────────────────────────────────────────────
@@ -310,25 +321,22 @@ def load_data():
     df["Accessories Name"] = df["Accessories Name"].astype(str).str.strip()
     return df
 
-def ensure_log_sheet():
+def ensure_log_sheet(log_sheet_name):
     gc = get_gc()
     sh = gc.open_by_key(SPREADSHEET_ID)
     try:
-        ws = sh.worksheet(LOG_SHEET)
+        ws = sh.worksheet(log_sheet_name)
     except gspread.exceptions.WorksheetNotFound:
-        ws = sh.add_worksheet(title=LOG_SHEET, rows=1000, cols=30)
-        headers = [
-            "Timestamp", "Part Name", "Accessories Code",
-            "Accessories Name", "Base Color", "Batch Size (kg)"
-        ] + INGREDIENT_COLS
-        ws.append_row(headers, value_input_option="USER_ENTERED")
+        ws = sh.add_worksheet(title=log_sheet_name, rows=1000, cols=35)
+        ws.append_row(LOG_HEADERS, value_input_option="USER_ENTERED")
     return ws
 
-def log_batch(row_data: dict, batch_kg: float, ingredient_kgs: dict):
-    ws = ensure_log_sheet()
+def log_batch(row_data: dict, batch_kg: float, ingredient_kgs: dict, factory_label: str, log_sheet_name: str):
+    ws = ensure_log_sheet(log_sheet_name)
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_row = [
         now,
+        factory_label,
         row_data.get("Name", ""),
         row_data.get("Accessories Code", ""),
         row_data.get("Accessories Name", ""),
@@ -339,19 +347,43 @@ def log_batch(row_data: dict, batch_kg: float, ingredient_kgs: dict):
         log_row.append(round(ingredient_kgs.get(col, 0), 3) if ingredient_kgs.get(col, 0) > 0 else "")
     ws.append_row(log_row, value_input_option="USER_ENTERED")
 
-@st.cache_data(ttl=60, show_spinner=False)
-def load_recent_logs():
+@st.cache_data(ttl=30, show_spinner=False)
+def load_recent_logs(log_sheet_name: str):
     gc = get_gc()
     sh = gc.open_by_key(SPREADSHEET_ID)
     try:
-        ws = sh.worksheet(LOG_SHEET)
+        ws = sh.worksheet(log_sheet_name)
         records = ws.get_all_records()
         if not records:
             return pd.DataFrame()
         df_log = pd.DataFrame(records)
-        return df_log.iloc[::-1].head(10)
+        return df_log.iloc[::-1].head(10).reset_index(drop=True)
     except Exception:
         return pd.DataFrame()
+
+def delete_log_row(log_sheet_name: str, timestamp: str, accessories_code: str, batch_size: float):
+    """Find and delete a row matching timestamp + code + batch size. Returns True if deleted."""
+    gc = get_gc()
+    sh = gc.open_by_key(SPREADSHEET_ID)
+    ws = sh.worksheet(log_sheet_name)
+    all_rows = ws.get_all_values()
+    if not all_rows:
+        return False
+    headers = all_rows[0]
+    try:
+        ts_col   = headers.index("Timestamp")
+        code_col = headers.index("Accessories Code")
+        kg_col   = headers.index("Batch Size (kg)")
+    except ValueError:
+        return False
+    for i, row in enumerate(all_rows[1:], start=2):  # row index is 1-based in Sheets
+        if (len(row) > max(ts_col, code_col, kg_col) and
+            row[ts_col].strip()   == str(timestamp).strip() and
+            row[code_col].strip() == str(accessories_code).strip() and
+            str(row[kg_col]).strip() == str(batch_size).strip()):
+            ws.delete_rows(i)
+            return True
+    return False
 
 def has_recipe(row) -> bool:
     return any(row.get(c, 0) > 0 for c in INGREDIENT_COLS)
@@ -363,6 +395,8 @@ for key, default in [
     ("active_cols", []),
     ("current_part_code", None),
     ("pct_values", {}),
+    ("factory", "Narayanganj (NG)"),
+    ("pending_delete", None),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -375,7 +409,35 @@ st.markdown(
     f'</div>',
     unsafe_allow_html=True
 )
-st.markdown('<div class="pm-subtitle">ACI Premio Plastics · Batch Recipe Calculator</div>', unsafe_allow_html=True)
+st.markdown('<div class="pm-subtitle">ACI Premio Plastics · Batch Recipe Calculator by Wasif Amir</div>', unsafe_allow_html=True)
+
+# ── Factory Location Selector ─────────────────────────────────────────────────
+loc_col1, loc_col2 = st.columns([3, 1])
+with loc_col1:
+    selected_factory = st.radio(
+        "Factory",
+        list(FACTORY_OPTIONS.keys()),
+        horizontal=True,
+        label_visibility="collapsed",
+        key="factory_radio"
+    )
+with loc_col2:
+    st.markdown(
+        f'<div style="font-size:0.78rem;color:var(--text-muted);padding-top:8px;">'
+        f'Logging to: <strong style="color:var(--accent);">{FACTORY_OPTIONS[selected_factory]}</strong></div>',
+        unsafe_allow_html=True
+    )
+
+# Reset batch_confirmed if factory changes mid-session
+if selected_factory != st.session_state.factory:
+    st.session_state.factory = selected_factory
+    st.session_state.batch_confirmed = False
+    st.session_state.pending_delete = None
+    load_recent_logs.clear()
+
+st.markdown("<hr style='margin:8px 0 14px;border-color:var(--border);'>", unsafe_allow_html=True)
+
+ACTIVE_LOG_SHEET = FACTORY_OPTIONS[selected_factory]
 
 # ── Load data ─────────────────────────────────────────────────────────────────
 with st.spinner("Loading masterfile..."):
@@ -614,8 +676,9 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
             ):
                 try:
                     with st.spinner("Logging batch..."):
-                        log_batch(row, batch_kg, ingredient_kgs)
+                        log_batch(row, batch_kg, ingredient_kgs, selected_factory, ACTIVE_LOG_SHEET)
                     st.session_state.batch_confirmed = True
+                    load_recent_logs.clear()
                     st.toast("✓ Batch logged successfully", icon="✅")
                     st.rerun()
                 except Exception as e:
@@ -634,21 +697,84 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
 
 # ── RECENT LOGS HISTORY ───────────────────────────────────────────────────────
 st.markdown(
-    '<div class="pm-card">'
-    '<div class="pm-card-title">Recent Factory Logs (Last 10)</div>',
+    f'<div class="pm-card">'
+    f'<div class="pm-card-title">Recent Logs — {selected_factory} (Last 10)</div>'
+    f'<div class="pm-card-guidance">Select a row to delete it if a batch was logged in error. '
+    f'Only logs from the currently selected factory are shown.</div>',
     unsafe_allow_html=True
 )
 
-recent_logs_df = load_recent_logs()
+recent_logs_df = load_recent_logs(ACTIVE_LOG_SHEET)
 
 if not recent_logs_df.empty:
-    columns_to_keep = [col for col in recent_logs_df.columns if not recent_logs_df[col].astype(str).str.strip().eq('').all()]
-    st.dataframe(
-        recent_logs_df[columns_to_keep],
+    # Only keep non-empty columns
+    cols_to_show = [col for col in recent_logs_df.columns
+                    if not recent_logs_df[col].astype(str).str.strip().eq('').all()]
+    display_df = recent_logs_df[cols_to_show].copy()
+
+    # Add a Select column for deletion
+    display_df.insert(0, "🗑 Select", False)
+
+    edited_logs = st.data_editor(
+        display_df,
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
+        column_config={
+            "🗑 Select": st.column_config.CheckboxColumn("🗑", width="small"),
+        },
+        disabled=[c for c in display_df.columns if c != "🗑 Select"],
+        key="logs_editor"
     )
+
+    # Check if any rows are selected
+    selected_mask = edited_logs["🗑 Select"] == True
+    selected_rows = recent_logs_df[selected_mask.values]
+
+    if not selected_rows.empty:
+        selected_row_data = selected_rows.iloc[0]
+
+        # Show confirmation before deletion
+        if st.session_state.pending_delete is None:
+            st.markdown(
+                f'<div class="pm-warn">⚠ You are about to delete the batch logged at '
+                f'<strong>{selected_row_data.get("Timestamp", "")}</strong> — '
+                f'<strong>{selected_row_data.get("Accessories Name", "")}</strong>, '
+                f'<strong>{selected_row_data.get("Batch Size (kg)", "")} kg</strong>. '
+                f'This cannot be undone.</div>',
+                unsafe_allow_html=True
+            )
+            del_col1, del_col2 = st.columns([1, 1])
+            with del_col1:
+                if st.button("✕ Confirm Delete", use_container_width=True, key="confirm_delete_btn"):
+                    st.session_state.pending_delete = {
+                        "timestamp":       str(selected_row_data.get("Timestamp", "")),
+                        "accessories_code": str(selected_row_data.get("Accessories Code", "")),
+                        "batch_size":      str(selected_row_data.get("Batch Size (kg)", "")),
+                    }
+                    st.rerun()
+            with del_col2:
+                if st.button("Cancel", use_container_width=True, key="cancel_delete_btn"):
+                    st.rerun()
+
+    # Execute pending deletion
+    if st.session_state.pending_delete:
+        pd_data = st.session_state.pending_delete
+        with st.spinner("Deleting log entry..."):
+            success = delete_log_row(
+                ACTIVE_LOG_SHEET,
+                pd_data["timestamp"],
+                pd_data["accessories_code"],
+                pd_data["batch_size"],
+            )
+        st.session_state.pending_delete = None
+        load_recent_logs.clear()
+        if success:
+            st.toast("✓ Log entry deleted", icon="🗑️")
+        else:
+            st.error("Could not find that row to delete — it may have already been removed.")
+        st.rerun()
+
 else:
-    st.caption("No recent batch entries found in the log.")
+    st.caption(f"No batch entries found in {selected_factory} log yet.")
 
 st.markdown('</div>', unsafe_allow_html=True)
