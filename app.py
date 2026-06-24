@@ -562,9 +562,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
             for c in combined_df.columns
         }
 
-    # Stable editor key to protect widget state from container restarts
-    sorted_pct_tuple = tuple(sorted((k, float(v)) for k, v in pct_values.items()))
-    editor_key = f"recipe_ed_{part_code}_{hash(sorted_pct_tuple)}_{batch_kg}_{is_vertical}"
+    editor_key = f"recipe_editor_{part_code}_{hash((tuple(sorted(pct_values.items())), batch_kg, tuple(active_cols), is_vertical))}"
     edited_df  = st.data_editor(combined_df, use_container_width=True, column_config=column_config, key=editor_key)
 
     new_pct_values = {}
