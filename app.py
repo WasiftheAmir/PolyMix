@@ -17,6 +17,10 @@ if "dark_mode" not in st.session_state:
 
 _dark = st.session_state.dark_mode
 
+# iOS toggle configuration variables
+bg_track = "var(--accent)" if _dark else "var(--bg-neutral)"
+knob_left = "26px" if _dark else "2px"
+
 # ── Color Palette ─────────────────────────────────────────────────────────────
 THEME = {
     "brand_hue": "335",
@@ -152,27 +156,51 @@ st.markdown(f"""
     .summary-strip-label {{ font-size: 0.72rem; color: rgba(255,255,255,0.85); line-height: 1.1; }}
     .summary-strip-val   {{ font-size: 1.05rem; font-weight: 800; color: #fff; line-height: 1.2; }}
 
-    /* Dark mode toggle button — small and subtle */
-    div[data-testid="column"]:last-child .stButton > button {{
-        background: transparent !important;
+    /* iOS Capsule Style Switch Wrapper Container */
+    .ios-switch-container {{
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        height: 100%;
+        padding-top: 12px;
+    }}
+    .ios-switch-container .stButton > button {{
+        position: relative !important;
+        background-color: {bg_track} !important;
         border: 1px solid var(--border) !important;
-        color: var(--text-muted) !important;
-        font-size: 1.1rem !important;
-        height: 36px !important;
-        line-height: 36px !important;
-        width: 44px !important;
+        border-radius: 999px !important;
+        height: 28px !important;
+        width: 52px !important;
+        min-width: 52px !important;
         padding: 0 !important;
-        border-radius: 8px !important;
-        min-width: 0 !important;
+        transition: background-color 0.2s ease !important;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15) !important;
     }}
-    div[data-testid="column"]:last-child .stButton > button:hover {{
+    .ios-switch-container .stButton > button:hover {{
         border-color: var(--accent) !important;
-        opacity: 1 !important;
     }}
-    div[data-testid="column"]:last-child .stButton > button p {{
-        color: var(--text-muted) !important;
-        font-size: 1.1rem !important;
-        font-weight: normal !important;
+    .ios-switch-container .stButton > button:focus {{
+        outline: none !important;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15) !important;
+    }}
+    
+    /* Detach the inner text element to act as a physical sliding knob */
+    .ios-switch-container .stButton > button p {{
+        position: absolute !important;
+        margin: 0 !important;
+        top: 2px !important;
+        left: {knob_left} !important;
+        width: 22px !important;
+        height: 22px !important;
+        background: #ffffff !important;
+        border-radius: 50% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 0.9rem !important;
+        line-height: 1 !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.25) !important;
+        transition: left 0.2s ease !important;
     }}
 
     [data-testid="stTextInput"] input,
@@ -407,9 +435,15 @@ with hdr_col:
         unsafe_allow_html=True
     )
 with toggle_col:
+    # Open custom container wrapper for iOS toggle layout isolation
+    st.markdown('<div class="ios-switch-container">', unsafe_allow_html=True)
+    
+    # Text represents the option you flip TO when clicked
     if st.button("☀️" if _dark else "🌙", key="dark_mode_toggle"):
         st.session_state.dark_mode = not _dark
         st.rerun()
+        
+    st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(
     '<div class="pm-subtitle">ACI Premio Plastics · Batch Recipe Calculator · '
@@ -612,11 +646,11 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
         <div class="summary-strip">
             <div>
                 <div class="summary-strip-label">Total Pct</div>
-                <div class="summary-strip-val">{total_pct*100:.1f}%</div>
+                <div class="summary-strip-val">{{total_pct*100:.1f}}%</div>
             </div>
             <div style="text-align:right;">
                 <div class="summary-strip-label">Total Weight</div>
-                <div class="summary-strip-val">{total_kg:.3f} kg</div>
+                <div class="summary-strip-val">{{total_kg:.3f}} kg</div>
             </div>
         </div>""", unsafe_allow_html=True)
 
