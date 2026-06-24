@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -11,64 +11,55 @@ st.set_page_config(
     layout="centered",
 )
 
-# Centralized Core Color Variables for quick presentation adjustments
+# ── Dark mode must be read BEFORE CSS is rendered ────────────────────────────
+if "dark_mode" not in st.session_state:
+    st.session_state.dark_mode = False
+
+_dark = st.session_state.dark_mode
+
+# ── Color Palette ─────────────────────────────────────────────────────────────
 THEME = {
-    # 1. Choose your mode: True for Light (Pure White), False for Dark (Pure Black)
-    "light_mode": True,          
-    
-    # 2. Choose your main brand hue (0-360) and saturation (0%-100%)
-    "brand_hue": "335",          # 200 is Sky Blue, 140 is Emerald, 25 is Orange, etc.
-    "brand_saturation": "85%",   
-    
-    # 3. Choose your text base hue and saturation
-    "text_hue": "360",           # Midnight/dark blue base
+    "brand_hue": "335",
+    "brand_saturation": "85%",
+    "text_hue": "360",
     "text_saturation": "35%",
-    
-    # 4. Static functional colors (will stay constant)
-    "warn_bg": "#fff1f2",
-    "warn_border": "#fecdd3",
-    "warn_text": "#9f1239",
-    "success_bg": "#f0fdf4",
-    "success_border": "#bbf7d0",
-    "success_text": "#166534",
+    "warn_bg":       "#fff1f2",
+    "warn_border":   "#fecdd3",
+    "warn_text":     "#9f1239",
+    "success_bg":    "#f0fdf4",
+    "success_border":"#bbf7d0",
+    "success_text":  "#166534",
 }
 
-# Mathematically handle the hard white vs hard black rules
-bg_app = "#ffffff" if THEME["light_mode"] else "#000000"
-bg_card = "#ffffff" if THEME["light_mode"] else "#121212" 
-bg_neutral = "#f0f0f0" if THEME["light_mode"] else "#2a2a2a"
-text_lightness = "11%" if THEME["light_mode"] else "90%"  
+bg_app        = "#0d0d0d" if _dark else "#ffffff"
+bg_card       = "#1a1a1a" if _dark else "#ffffff"
+bg_neutral    = "#2a2a2a" if _dark else "#f0f0f0"
+text_lightness = "90%"    if _dark else "11%"
+border_l      = "20%"     if _dark else "90%"
+border_input_l= "25%"     if _dark else "85%"
 
-# ── Styling (Optimized for Responsive Desktop & Mobile layout) ────────────────────
+# ── Styling ───────────────────────────────────────────────────────────────────
 st.markdown(f"""
 <style>
     :root {{
-        /* --- BRAND DERIVATIONS --- */
-        --accent: hsl({THEME["brand_hue"]}, {THEME["brand_saturation"]}, 45%);
-        --accent-disabled: hsl({THEME["brand_hue"]}, {THEME["brand_saturation"]}, 85%);
-        --accent-light: hsl({THEME["brand_hue"]}, {THEME["brand_saturation"]}, 94%);
-        --accent-glow: hsla({THEME["brand_hue"]}, {THEME["brand_saturation"]}, 45%, 0.12);
-        --border: hsl({THEME["brand_hue"]}, 40%, 90%);
-        --border-input: hsl({THEME["brand_hue"]}, 50%, 85%);
-        
-        /* --- FIXED BINARY BACKGROUNDS --- */
-        --bg-primary: {bg_app}; 
-        --bg-card: {bg_card};
-        --bg-neutral: {bg_neutral};
-
-        /* --- TEXT DERIVATIONS --- */
-        --text-main: hsl({THEME["text_hue"]}, {THEME["text_saturation"]}, {text_lightness});      
-        --text-guidance: hsl({THEME["text_hue"]}, {THEME["text_saturation"]}, 45%);  
-        --text-muted: hsl({THEME["text_hue"]}, 15%, 60%);                             
-
-        /* --- STATIC FUNCTIONAL COLORS --- */
-        --warn-bg: {THEME["warn_bg"]};
-        --warn-border: {THEME["warn_border"]};
-        --warn-text: {THEME["warn_text"]};
-        --success-bg: {THEME["success_bg"]};
-        --success-border: {THEME["success_border"]};
-        --success-text: {THEME["success_text"]};
-        
+        --accent:          hsl({THEME["brand_hue"]}, {THEME["brand_saturation"]}, 45%);
+        --accent-disabled: hsl({THEME["brand_hue"]}, {THEME["brand_saturation"]}, {"65%" if _dark else "85%"});
+        --accent-light:    hsl({THEME["brand_hue"]}, {THEME["brand_saturation"]}, {"20%" if _dark else "94%"});
+        --accent-glow:     hsla({THEME["brand_hue"]}, {THEME["brand_saturation"]}, 45%, 0.15);
+        --border:          hsl({THEME["brand_hue"]}, 40%, {border_l});
+        --border-input:    hsl({THEME["brand_hue"]}, 50%, {border_input_l});
+        --bg-primary:      {bg_app};
+        --bg-card:         {bg_card};
+        --bg-neutral:      {bg_neutral};
+        --text-main:       hsl({THEME["text_hue"]}, {THEME["text_saturation"]}, {text_lightness});
+        --text-guidance:   hsl({THEME["text_hue"]}, {THEME["text_saturation"]}, {"65%" if _dark else "45%"});
+        --text-muted:      hsl({THEME["text_hue"]}, 15%, {"50%" if _dark else "60%"});
+        --warn-bg:         {THEME["warn_bg"]};
+        --warn-border:     {THEME["warn_border"]};
+        --warn-text:       {THEME["warn_text"]};
+        --success-bg:      {THEME["success_bg"]};
+        --success-border:  {THEME["success_border"]};
+        --success-text:    {THEME["success_text"]};
         --accent-hover-opacity: 0.85;
     }}
 
@@ -82,13 +73,16 @@ st.markdown(f"""
     [data-testid="block-container"] {{
         padding-top: 1.2rem !important;
         padding-bottom: 1rem !important;
+        background-color: var(--bg-primary) !important;
     }}
+    section[data-testid="stMain"] {{ background-color: var(--bg-primary) !important; }}
 
     .pm-title {{
         font-size: 3.2rem;
         font-weight: 800;
         letter-spacing: -0.5px;
         margin-bottom: 0;
+        line-height: 1;
     }}
     .pm-subtitle {{
         font-size: 0.85rem;
@@ -96,7 +90,6 @@ st.markdown(f"""
         margin-top: 1px;
         margin-bottom: 12px;
     }}
-
     .pm-card {{
         background: var(--bg-card);
         border: 1px solid var(--border);
@@ -118,10 +111,7 @@ st.markdown(f"""
         margin-bottom: 10px;
         line-height: 1.3;
     }}
-    .pm-card-example {{
-        color: var(--text-muted);
-        font-style: italic;
-    }}
+    .pm-card-example {{ color: var(--text-muted); font-style: italic; }}
 
     .pm-warn {{
         background: var(--warn-bg);
@@ -133,7 +123,6 @@ st.markdown(f"""
         font-weight: 600;
         margin-bottom: 10px;
     }}
-
     .pm-success {{
         background: var(--success-bg);
         border: 1px solid var(--success-border);
@@ -149,7 +138,6 @@ st.markdown(f"""
         width: 100%;
         box-sizing: border-box;
     }}
-
     .summary-strip {{
         background: var(--accent);
         border-radius: 8px;
@@ -162,7 +150,30 @@ st.markdown(f"""
         box-sizing: border-box;
     }}
     .summary-strip-label {{ font-size: 0.72rem; color: rgba(255,255,255,0.85); line-height: 1.1; }}
-    .summary-strip-val {{ font-size: 1.05rem; font-weight: 800; color: #fff; line-height: 1.2; }}
+    .summary-strip-val   {{ font-size: 1.05rem; font-weight: 800; color: #fff; line-height: 1.2; }}
+
+    /* Dark mode toggle button — small and subtle */
+    div[data-testid="column"]:last-child .stButton > button {{
+        background: transparent !important;
+        border: 1px solid var(--border) !important;
+        color: var(--text-muted) !important;
+        font-size: 1.1rem !important;
+        height: 36px !important;
+        line-height: 36px !important;
+        width: 44px !important;
+        padding: 0 !important;
+        border-radius: 8px !important;
+        min-width: 0 !important;
+    }}
+    div[data-testid="column"]:last-child .stButton > button:hover {{
+        border-color: var(--accent) !important;
+        opacity: 1 !important;
+    }}
+    div[data-testid="column"]:last-child .stButton > button p {{
+        color: var(--text-muted) !important;
+        font-size: 1.1rem !important;
+        font-weight: normal !important;
+    }}
 
     [data-testid="stTextInput"] input,
     [data-testid="stNumberInput"] input {{
@@ -179,7 +190,7 @@ st.markdown(f"""
 
     .stButton > button {{
         background: var(--accent) !important;
-        color: var(--bg-card) !important; 
+        color: #ffffff !important;
         border: none !important;
         border-radius: 8px !important;
         font-size: 3rem !important;
@@ -187,11 +198,11 @@ st.markdown(f"""
         width: 100% !important;
         height: 50px !important;
         line-height: 50px !important;
-        padding: 0 !important; 
+        padding: 0 !important;
         transition: opacity 0.15s;
     }}
     .stButton > button p {{
-        color: var(--bg-card) !important;
+        color: #ffffff !important;
         font-size: 1.25rem !important;
         font-weight: bold !important;
     }}
@@ -199,18 +210,16 @@ st.markdown(f"""
     .stButton > button:disabled,
     .stButton > button[disabled] {{
         background: var(--accent-disabled) !important;
-        color: var(--bg-card) !important;
+        color: #ffffff !important;
         opacity: 1 !important;
         cursor: not-allowed !important;
     }}
     .stButton > button:disabled p,
-    .stButton > button[disabled] p {{
-        color: var(--bg-card) !important;
-    }}
+    .stButton > button[disabled] p {{ color: #ffffff !important; }}
 
-    [data-testid="stRadio"] label {{ color: var(--text-main) !important; font-size: 0.85rem; }}
-    [data-testid="stRadio"] p {{ color: var(--text-main) !important; }}
-    [data-testid="stWidgetLabel"] p {{ color: var(--text-main) !important; }}
+    [data-testid="stRadio"] label    {{ color: var(--text-main) !important; font-size: 0.85rem; }}
+    [data-testid="stRadio"] p        {{ color: var(--text-main) !important; }}
+    [data-testid="stWidgetLabel"] p  {{ color: var(--text-main) !important; }}
     label[data-testid="stWidgetLabel"] {{ color: var(--text-main) !important; }}
     [data-testid="stMarkdownContainer"] p {{ color: var(--text-main) !important; }}
 
@@ -220,11 +229,14 @@ st.markdown(f"""
         color: var(--text-main) !important;
         border-radius: 8px !important;
     }}
-    [data-testid="stSelectbox"] svg {{ fill: var(--text-main) !important; }}
+    [data-testid="stSelectbox"] svg  {{ fill: var(--text-main) !important; }}
     [data-testid="stSelectbox"] span {{ color: var(--text-main) !important; }}
 
     [data-baseweb="popover"] ul {{ background-color: var(--bg-card) !important; }}
-    [data-baseweb="popover"] li {{ background-color: var(--bg-card) !important; color: var(--text-main) !important; }}
+    [data-baseweb="popover"] li {{
+        background-color: var(--bg-card) !important;
+        color: var(--text-main) !important;
+    }}
     [data-baseweb="popover"] li:hover {{ background-color: var(--accent-light) !important; }}
 
     [data-testid="stNumberInput"] button {{
@@ -232,9 +244,6 @@ st.markdown(f"""
         color: var(--text-main) !important;
         border: 1px solid var(--border-input) !important;
     }}
-
-    [data-testid="block-container"] {{ background-color: var(--bg-primary) !important; }}
-    section[data-testid="stMain"] {{ background-color: var(--bg-primary) !important; }}
 
     [data-testid="stDataFrame"] {{
         border: 1px solid var(--border) !important;
@@ -244,11 +253,8 @@ st.markdown(f"""
 
     #MainMenu, footer {{ visibility: hidden; }}
 
-    /* ─── MOBILE SPECIFIC INTERFACE OVERRIDES ─── */
     @media (max-width: 768px) {{
-        .pm-title {{
-            font-size: 2.2rem !important;
-        }}
+        .pm-title {{ font-size: 2.2rem !important; }}
         [data-testid="block-container"] {{
             padding-left: 0.5rem !important;
             padding-right: 0.5rem !important;
@@ -258,42 +264,33 @@ st.markdown(f"""
             flex: 1 1 100% !important;
             margin-bottom: 10px !important;
         }}
-        .stButton > button {{
-            height: 45px !important;
-            line-height: 45px !important;
-        }}
-        .stButton > button p {{
-            font-size: 1.1rem !important;
-        }}
-        .summary-strip {{
-            height: 45px !important;
-            margin-bottom: 10px !important;
-        }}
+        .stButton > button {{ height: 45px !important; line-height: 45px !important; }}
+        .stButton > button p {{ font-size: 1.1rem !important; }}
+        .summary-strip {{ height: 45px !important; margin-bottom: 10px !important; }}
     }}
 </style>
 """, unsafe_allow_html=True)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 SPREADSHEET_ID = "19vkOIuehijJoUqx0rr_Z24OMqHGsBVVHkF--2xdBkDM"
-DATA_SHEET = "Sheet1"
+DATA_SHEET     = "Sheet1"
+BD_TZ          = timezone(timedelta(hours=6))
 
 FACTORY_OPTIONS = {
     "Narayanganj (NG)": "Batch Log — NG",
     "N Poly":           "Batch Log — NPoly",
 }
 
-LOG_HEADERS = [
-    "Timestamp", "Factory", "Part Name", "Accessories Code",
-    "Accessories Name", "Base Color", "Batch Size (kg)"
-] + ["PPHP", "PPCP", "Chips %", "Compound %",
-     "LDP", "ABS", "PC", "GPPS", "TPR", "RCP",
-     "Dessicant", "Perfume MB", "Additive", "Filler", "MB"]
-
 INGREDIENT_COLS = [
     "PPHP", "PPCP", "Chips %", "Compound %",
     "LDP", "ABS", "PC", "GPPS", "TPR", "RCP",
     "Dessicant", "Perfume MB", "Additive", "Filler", "MB"
 ]
+
+LOG_HEADERS = [
+    "Timestamp", "Factory", "Part Name", "Accessories Code",
+    "Accessories Name", "Base Color", "Batch Size (kg)"
+] + INGREDIENT_COLS
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -331,14 +328,11 @@ def ensure_log_sheet(log_sheet_name):
         ws.append_row(LOG_HEADERS, value_input_option="USER_ENTERED")
     return ws
 
-def log_batch(row_data: dict, batch_kg: float, ingredient_kgs: dict, factory_label: str, log_sheet_name: str):
-    ws = ensure_log_sheet(log_sheet_name)
-    from datetime import datetime, timezone, timedelta
-    BD_TZ = timezone(timedelta(hours=6))
+def log_batch(row_data, batch_kg, ingredient_kgs, factory_label, log_sheet_name):
+    ws  = ensure_log_sheet(log_sheet_name)
     now = datetime.now(BD_TZ).strftime("%Y-%m-%d %H:%M:%S")
     log_row = [
-        now,
-        factory_label,
+        now, factory_label,
         row_data.get("Name", ""),
         row_data.get("Accessories Code", ""),
         row_data.get("Accessories Name", ""),
@@ -354,21 +348,19 @@ def load_recent_logs(log_sheet_name: str):
     gc = get_gc()
     sh = gc.open_by_key(SPREADSHEET_ID)
     try:
-        ws = sh.worksheet(log_sheet_name)
+        ws      = sh.worksheet(log_sheet_name)
         records = ws.get_all_records()
         if not records:
             return pd.DataFrame()
-        df_log = pd.DataFrame(records)
-        return df_log.iloc[::-1].head(10).reset_index(drop=True)
+        return pd.DataFrame(records).iloc[::-1].head(10).reset_index(drop=True)
     except Exception:
         return pd.DataFrame()
 
-def delete_log_row(log_sheet_name: str, timestamp: str, accessories_code: str, batch_size: float):
-    """Find and delete a row matching timestamp + code + batch size. Returns True if deleted."""
-    gc = get_gc()
-    sh = gc.open_by_key(SPREADSHEET_ID)
-    ws = sh.worksheet(log_sheet_name)
-    all_rows = ws.get_all_values()
+def delete_log_row(log_sheet_name, timestamp, accessories_code, batch_size):
+    gc        = get_gc()
+    sh        = gc.open_by_key(SPREADSHEET_ID)
+    ws        = sh.worksheet(log_sheet_name)
+    all_rows  = ws.get_all_values()
     if not all_rows:
         return False
     headers = all_rows[0]
@@ -378,50 +370,59 @@ def delete_log_row(log_sheet_name: str, timestamp: str, accessories_code: str, b
         kg_col   = headers.index("Batch Size (kg)")
     except ValueError:
         return False
-    for i, row in enumerate(all_rows[1:], start=2):  # row index is 1-based in Sheets
+    for i, row in enumerate(all_rows[1:], start=2):
         if (len(row) > max(ts_col, code_col, kg_col) and
-            row[ts_col].strip()   == str(timestamp).strip() and
-            row[code_col].strip() == str(accessories_code).strip() and
+            row[ts_col].strip()      == str(timestamp).strip() and
+            row[code_col].strip()    == str(accessories_code).strip() and
             str(row[kg_col]).strip() == str(batch_size).strip()):
             ws.delete_rows(i)
             return True
     return False
 
-def has_recipe(row) -> bool:
+def has_recipe(row):
     return any(row.get(c, 0) > 0 for c in INGREDIENT_COLS)
 
 # ── Session state ─────────────────────────────────────────────────────────────
 for key, default in [
-    ("selected_row", None),
-    ("batch_confirmed", False),
-    ("active_cols", []),
+    ("selected_row",      None),
+    ("batch_confirmed",   False),
+    ("active_cols",       []),
     ("current_part_code", None),
-    ("pct_values", {}),
-    ("factory", "Narayanganj (NG)"),
-    ("pending_delete", None),
+    ("pct_values",        {}),
+    ("factory",           "Narayanganj (NG)"),
+    ("pending_delete",    None),
+    ("dark_mode",         False),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
 
 # ── Header ────────────────────────────────────────────────────────────────────
+hdr_col, toggle_col = st.columns([9, 1])
+with hdr_col:
+    st.markdown(
+        '<div class="pm-title">'
+        '<span style="color:var(--accent);">Poly</span>'
+        '<span style="color:var(--text-main);">Mix</span>'
+        '</div>',
+        unsafe_allow_html=True
+    )
+with toggle_col:
+    if st.button("☀️" if _dark else "🌙", key="dark_mode_toggle"):
+        st.session_state.dark_mode = not _dark
+        st.rerun()
+
 st.markdown(
-    f'<div class="pm-title">'
-    f'<span style="color:var(--accent);">Poly</span>'
-    f'<span style="color:var(--text-main);">Mix</span>'
-    f'</div>',
+    '<div class="pm-subtitle">ACI Premio Plastics · Batch Recipe Calculator · '
+    '<span style="opacity:0.45;">developed by Wasif Amir</span></div>',
     unsafe_allow_html=True
 )
-st.markdown('<div class="pm-subtitle">ACI Premio Plastics · Batch Recipe Calculator by Wasif Amir</div>', unsafe_allow_html=True)
 
-# ── Factory Location Selector ─────────────────────────────────────────────────
+# ── Factory selector ──────────────────────────────────────────────────────────
 loc_col1, loc_col2 = st.columns([3, 1])
 with loc_col1:
     selected_factory = st.radio(
-        "Factory",
-        list(FACTORY_OPTIONS.keys()),
-        horizontal=True,
-        label_visibility="collapsed",
-        key="factory_radio"
+        "Factory", list(FACTORY_OPTIONS.keys()),
+        horizontal=True, label_visibility="collapsed", key="factory_radio"
     )
 with loc_col2:
     st.markdown(
@@ -430,18 +431,16 @@ with loc_col2:
         unsafe_allow_html=True
     )
 
-# Reset batch_confirmed if factory changes mid-session
 if selected_factory != st.session_state.factory:
-    st.session_state.factory = selected_factory
+    st.session_state.factory        = selected_factory
     st.session_state.batch_confirmed = False
-    st.session_state.pending_delete = None
+    st.session_state.pending_delete  = None
     load_recent_logs.clear()
 
 st.markdown("<hr style='margin:8px 0 14px;border-color:var(--border);'>", unsafe_allow_html=True)
-
 ACTIVE_LOG_SHEET = FACTORY_OPTIONS[selected_factory]
 
-# ── Load data ─────────────────────────────────────────────────────────────────
+# ── Load masterfile ───────────────────────────────────────────────────────────
 with st.spinner("Loading masterfile..."):
     try:
         df = load_data()
@@ -449,99 +448,81 @@ with st.spinner("Loading masterfile..."):
         st.error(f"Could not load WIP Masterfile: {e}")
         st.stop()
 
-# ── STEP 1 & 2: Search & Configuration (Combined) ────────────────────────────
+# ── SETUP BATCH ───────────────────────────────────────────────────────────────
 st.markdown(
     '<div class="pm-card">'
     '<div class="pm-card-title">Setup Batch</div>'
-    '<div class="pm-card-guidance">Search the component masterfile by text or code, then assign your total batch target weight. <span class="pm-card-example">(e.g., Gold WD Frame 5D or 3108000537)</span></div>',
+    '<div class="pm-card-guidance">Search the component masterfile by name or code, then set your target batch weight. '
+    '<span class="pm-card-example">(e.g. Gold WD Frame 5D or 3108000537)</span></div>',
     unsafe_allow_html=True
 )
 
 col1, col2 = st.columns([1, 1])
-
 with col1:
     search_term = st.text_input(
-        "Search",
-        placeholder="Search Name or Code...",
-        label_visibility="collapsed",
-        key="search_input"
+        "Search", placeholder="Search Name or Code...",
+        label_visibility="collapsed", key="search_input"
     )
     search_mode = st.radio(
-        "Search by",
-        ["Name", "Code"],
-        horizontal=True,
-        label_visibility="collapsed"
+        "Search by", ["Name", "Code"],
+        horizontal=True, label_visibility="collapsed"
     )
 
-final_row = None
 batch_kg = 50.0
 
 if search_term.strip():
     term = search_term.strip().lower()
     if search_mode == "Name":
         results = df[df["Accessories Name"].str.lower().str.contains(term, na=False)].drop_duplicates(
-            subset=["Accessories Code", "Accessories Name"]
-        )
+            subset=["Accessories Code", "Accessories Name"])
     else:
         results = df[df["Accessories Code"].str.lower().str.contains(term, na=False)].drop_duplicates(
-            subset=["Accessories Code", "Accessories Name"]
-        )
+            subset=["Accessories Code", "Accessories Name"])
 
     if not results.empty:
-        options = {}
-        for _, r in results.iterrows():
-            label = f"{r['Accessories Name']} · {r['Accessories Code']} · {r['Base Color']}"
-            options[label] = r.to_dict()
-
+        options = {
+            f"{r['Accessories Name']} · {r['Accessories Code']} · {r['Base Color']}": r.to_dict()
+            for _, r in results.iterrows()
+        }
         with col2:
-            selected_label = st.selectbox(
-                "Select accessory",
-                list(options.keys()),
-                label_visibility="collapsed"
-            )
+            selected_label = st.selectbox("Part", list(options.keys()), label_visibility="collapsed")
             final_row = options[selected_label]
             st.session_state.selected_row = final_row
-            
             if has_recipe(final_row):
                 batch_kg = st.number_input(
-                    "Total amount (kg)",
-                    min_value=0.1,
-                    max_value=10000.0,
-                    value=50.0,
-                    step=0.5,
-                    format="%.1f",
+                    "Total amount (kg)", min_value=0.1, max_value=10000.0,
+                    value=50.0, step=0.5, format="%.1f"
                 )
             else:
-                st.markdown(f'<div class="pm-warn">⚠ No recipe data available for this selection.</div>', unsafe_allow_html=True)
+                st.markdown('<div class="pm-warn">⚠ No recipe data for this part.</div>', unsafe_allow_html=True)
     else:
         with col2:
-            st.markdown(f'<div class="pm-warn">⚠ No parts found. Try a different search term.</div>', unsafe_allow_html=True)
-            st.session_state.selected_row = None
-            st.session_state.current_part_code = None
+            st.markdown('<div class="pm-warn">⚠ No parts found. Try a different search term.</div>', unsafe_allow_html=True)
+        st.session_state.selected_row      = None
+        st.session_state.current_part_code = None
 else:
-    st.session_state.selected_row = None
+    st.session_state.selected_row      = None
     st.session_state.current_part_code = None
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ── STEP 3 & 4: Editable Recipe Breakdown & Confirmation ──────────────────────
+# ── RECIPE BREAKDOWN & LOGGING ────────────────────────────────────────────────
 if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
     row = st.session_state.selected_row
 
     st.markdown(
         '<div class="pm-card">'
         '<div class="pm-card-title">Recipe Breakdown & Logging</div>'
-        '<div class="pm-card-guidance">Adjust ingredient percentages if needed (e.g., excess recycled chips, recipe tweaks). Verify totals equal 100% before confirming. <span class="pm-card-example">(Edited recipes log but do not change the masterfile)</span></div>',
+        '<div class="pm-card-guidance">Adjust percentages if needed. Total must equal 100% before confirming. '
+        '<span class="pm-card-example">(Changes log to the Batch Log but never alter the masterfile)</span></div>',
         unsafe_allow_html=True
     )
 
-    # Reset active ingredient list, percentage values, and confirmation state
-    # only when a different part is selected (not on every rerun)
     part_code = row.get("Accessories Code", "unknown")
     if st.session_state.current_part_code != part_code:
         st.session_state.current_part_code = part_code
-        st.session_state.batch_confirmed = False
-        st.session_state.active_cols = [
+        st.session_state.batch_confirmed   = False
+        st.session_state.active_cols       = [
             col for col in INGREDIENT_COLS
             if not isinstance(row.get(col, 0), str) and row.get(col, 0) > 0
         ]
@@ -551,33 +532,29 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
         }
 
     active_cols = st.session_state.active_cols
-
-    # Ensure every active column has a tracked percentage
     for col in active_cols:
         if col not in st.session_state.pct_values:
             st.session_state.pct_values[col] = 0.0
-
     pct_values = st.session_state.pct_values
 
-    # Build combined % / kg table — ingredients as columns, two rows (% and kg)
-    display_data = {}
-    for col in active_cols:
-        display_name = col.replace(" %", "")
-        pct_val = pct_values[col]
-        kg_val = round((pct_val / 100.0) * batch_kg, 3)
-        display_data[display_name] = [pct_val, kg_val]
-
+    # Build table
+    display_data = {
+        col.replace(" %", ""): [pct_values[col], round((pct_values[col] / 100.0) * batch_kg, 3)]
+        for col in active_cols
+    }
     combined_df = pd.DataFrame(display_data, index=["%", "kg"])
 
-    # Adaptive mobile layout switch
-    layout_mode = st.radio("Interface Mode", ["Standard (Horizontal)", "Mobile (Vertical Transposed)"], horizontal=True, label_visibility="collapsed")
+    layout_mode = st.radio(
+        "Mode", ["Standard (Horizontal)", "Mobile (Vertical Transposed)"],
+        horizontal=True, label_visibility="collapsed"
+    )
     is_vertical = (layout_mode == "Mobile (Vertical Transposed)")
 
     if is_vertical:
-        combined_df = combined_df.T
+        combined_df   = combined_df.T
         column_config = {
-            "%": st.column_config.NumberColumn("%", min_value=0, step=0.1, format="%.2f"),
-            "kg": st.column_config.NumberColumn("kg", disabled=True, format="%.3f")
+            "%":  st.column_config.NumberColumn("%",  min_value=0, step=0.1, format="%.2f"),
+            "kg": st.column_config.NumberColumn("kg", disabled=True, format="%.3f"),
         }
     else:
         column_config = {
@@ -585,74 +562,51 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
             for c in combined_df.columns
         }
 
-    state_signature = (tuple(sorted(pct_values.items())), batch_kg, tuple(active_cols), is_vertical)
-    editor_key = f"recipe_editor_{part_code}_{hash(state_signature)}"
+    editor_key = f"recipe_editor_{part_code}_{hash((tuple(sorted(pct_values.items())), batch_kg, tuple(active_cols), is_vertical))}"
+    edited_df  = st.data_editor(combined_df, use_container_width=True, column_config=column_config, key=editor_key)
 
-    edited_df = st.data_editor(
-        combined_df,
-        use_container_width=True,
-        column_config=column_config,
-        key=editor_key
-    )
-
-    # Pull edited % values adaptively based on selected layout direction
     new_pct_values = {}
     changed = False
     for col in active_cols:
         display_name = col.replace(" %", "")
-        if is_vertical:
-            new_val = float(edited_df.loc[display_name, "%"])
-        else:
-            new_val = float(edited_df.loc["%", display_name])
-            
+        new_val = float(edited_df.loc[display_name, "%"] if is_vertical else edited_df.loc["%", display_name])
         new_pct_values[col] = new_val
         if abs(new_val - pct_values[col]) > 1e-9:
             changed = True
-
     if changed:
         st.session_state.pct_values = new_pct_values
         st.rerun()
 
-    # Calculate ingredient kg amounts from current percentages
-    ingredient_kgs = {}
-    edited_pcts_decimal = {}
-    for col in active_cols:
-        pct_val = pct_values[col] / 100.0
-        edited_pcts_decimal[col] = pct_val
-        ingredient_kgs[col] = round(pct_val * batch_kg, 3)
-
-    # ── Add ingredient control ────────────────────────────────────────────────
-    remaining_cols = [c for c in INGREDIENT_COLS if c not in active_cols]
-    if remaining_cols:
-        add_col1, add_col2 = st.columns([3, 1])
-        with add_col1:
-            new_ingredient = st.selectbox(
-                "Add ingredient",
-                [c.replace(" %", "") for c in remaining_cols],
-                label_visibility="collapsed",
-                key=f"add_ingredient_select_{part_code}"
-            )
-        with add_col2:
-            if st.button("+ Add", use_container_width=True, key=f"add_ingredient_btn_{part_code}"):
-                matching_col = next(c for c in remaining_cols if c.replace(" %", "") == new_ingredient)
-                st.session_state.active_cols.append(matching_col)
-                st.rerun()
-
-    # Calculate totals with edited percentages
-    total_pct = sum(edited_pcts_decimal.values())
-    total_kg = sum(ingredient_kgs.values())
+    ingredient_kgs     = {col: round(pct_values[col] / 100.0 * batch_kg, 3) for col in active_cols}
+    edited_pcts_decimal = {col: pct_values[col] / 100.0 for col in active_cols}
+    total_pct   = sum(edited_pcts_decimal.values())
+    total_kg    = sum(ingredient_kgs.values())
     pct_deviation = (total_pct - 1.0) * 100
 
-    # Warning if total doesn't equal 100%
-    if abs(pct_deviation) > 0.01:
-        if pct_deviation > 0:
-            st.markdown(f'<div class="pm-warn">⚠ Recipe total is {total_pct*100:.1f}% — {pct_deviation:+.1f}% over target.</div>', unsafe_allow_html=True)
-        else:
-            st.markdown(f'<div class="pm-warn">⚠ Recipe total is {total_pct*100:.1f}% — {pct_deviation:.1f}% under target.</div>', unsafe_allow_html=True)
+    # Add ingredient
+    remaining_cols = [c for c in INGREDIENT_COLS if c not in active_cols]
+    if remaining_cols:
+        add_c1, add_c2 = st.columns([3, 1])
+        with add_c1:
+            new_ingredient = st.selectbox(
+                "Add", [c.replace(" %", "") for c in remaining_cols],
+                label_visibility="collapsed", key=f"add_ing_{part_code}"
+            )
+        with add_c2:
+            if st.button("+ Add", use_container_width=True, key=f"add_ing_btn_{part_code}"):
+                matching = next(c for c in remaining_cols if c.replace(" %", "") == new_ingredient)
+                st.session_state.active_cols.append(matching)
+                st.rerun()
 
-    # Action Row: Summary and Logging side by side (CSS stacks these automatically on mobile)
+    if abs(pct_deviation) > 0.01:
+        sign = "+" if pct_deviation > 0 else ""
+        st.markdown(
+            f'<div class="pm-warn">⚠ Recipe total is {total_pct*100:.1f}% — {sign}{pct_deviation:.1f}% '
+            f'{"over" if pct_deviation > 0 else "under"} target.</div>',
+            unsafe_allow_html=True
+        )
+
     bot_col1, bot_col2 = st.columns([1, 1])
-    
     with bot_col1:
         st.markdown(f"""
         <div class="summary-strip">
@@ -664,18 +618,12 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
                 <div class="summary-strip-label">Total Weight</div>
                 <div class="summary-strip-val">{total_kg:.3f} kg</div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+        </div>""", unsafe_allow_html=True)
 
     with bot_col2:
         if not st.session_state.batch_confirmed:
-            is_locked = abs(pct_deviation) > 0.01
-            if st.button(
-                "Confirm & Log Batch",
-                key="action_log_trigger",
-                use_container_width=True,
-                disabled=is_locked
-            ):
+            if st.button("Confirm & Log Batch", key="action_log_trigger",
+                         use_container_width=True, disabled=abs(pct_deviation) > 0.01):
                 try:
                     with st.spinner("Logging batch..."):
                         log_batch(row, batch_kg, ingredient_kgs, selected_factory, ACTIVE_LOG_SHEET)
@@ -690,75 +638,60 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
                 st.session_state.batch_confirmed = False
                 st.rerun()
 
-    # Full-width success message below the action row
     if st.session_state.batch_confirmed:
-        ts = datetime.now().strftime("%H:%M")
-        st.markdown(f'<div class="pm-success" style="margin-top:10px;">✓ Batch logged successfully · {ts}</div>', unsafe_allow_html=True)
+        ts = datetime.now(BD_TZ).strftime("%H:%M")
+        st.markdown(
+            f'<div class="pm-success" style="margin-top:10px;">✓ Batch logged successfully · {ts}</div>',
+            unsafe_allow_html=True
+        )
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ── RECENT LOGS HISTORY ───────────────────────────────────────────────────────
+# ── RECENT LOGS ───────────────────────────────────────────────────────────────
 st.markdown(
     f'<div class="pm-card">'
     f'<div class="pm-card-title">Recent Logs — {selected_factory} (Last 10)</div>'
-    f'<div class="pm-card-guidance">Select a row to delete it if a batch was logged in error. '
-    f'Only logs from the currently selected factory are shown.</div>',
+    f'<div class="pm-card-guidance">Check the box next to a row to delete it if a batch was logged in error.</div>',
     unsafe_allow_html=True
 )
 
 recent_logs_df = load_recent_logs(ACTIVE_LOG_SHEET)
 
 if not recent_logs_df.empty:
-    # Only keep non-empty columns
-    cols_to_show = [col for col in recent_logs_df.columns
-                    if not recent_logs_df[col].astype(str).str.strip().eq('').all()]
+    cols_to_show = [c for c in recent_logs_df.columns
+                    if not recent_logs_df[c].astype(str).str.strip().eq('').all()]
     display_df = recent_logs_df[cols_to_show].copy()
-
-    # Add a Select column for deletion
     display_df.insert(0, "🗑 Select", False)
 
     edited_logs = st.data_editor(
-        display_df,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "🗑 Select": st.column_config.CheckboxColumn("🗑", width="small"),
-        },
+        display_df, use_container_width=True, hide_index=True,
+        column_config={"🗑 Select": st.column_config.CheckboxColumn("🗑", width="small")},
         disabled=[c for c in display_df.columns if c != "🗑 Select"],
         key="logs_editor"
     )
 
-    # Check if any rows are selected
-    selected_mask = edited_logs["🗑 Select"] == True
-    selected_rows = recent_logs_df[selected_mask.values]
+    selected_rows = recent_logs_df[(edited_logs["🗑 Select"] == True).values]
+    if not selected_rows.empty and st.session_state.pending_delete is None:
+        r = selected_rows.iloc[0]
+        st.markdown(
+            f'<div class="pm-warn">⚠ Delete batch logged at <strong>{r.get("Timestamp","")}</strong> — '
+            f'<strong>{r.get("Accessories Name","")}</strong>, '
+            f'<strong>{r.get("Batch Size (kg)","")} kg</strong>? This cannot be undone.</div>',
+            unsafe_allow_html=True
+        )
+        dc1, dc2 = st.columns([1, 1])
+        with dc1:
+            if st.button("✕ Confirm Delete", use_container_width=True, key="confirm_delete_btn"):
+                st.session_state.pending_delete = {
+                    "timestamp":        str(r.get("Timestamp", "")),
+                    "accessories_code": str(r.get("Accessories Code", "")),
+                    "batch_size":       str(r.get("Batch Size (kg)", "")),
+                }
+                st.rerun()
+        with dc2:
+            if st.button("Cancel", use_container_width=True, key="cancel_delete_btn"):
+                st.rerun()
 
-    if not selected_rows.empty:
-        selected_row_data = selected_rows.iloc[0]
-
-        # Show confirmation before deletion
-        if st.session_state.pending_delete is None:
-            st.markdown(
-                f'<div class="pm-warn">⚠ You are about to delete the batch logged at '
-                f'<strong>{selected_row_data.get("Timestamp", "")}</strong> — '
-                f'<strong>{selected_row_data.get("Accessories Name", "")}</strong>, '
-                f'<strong>{selected_row_data.get("Batch Size (kg)", "")} kg</strong>. '
-                f'This cannot be undone.</div>',
-                unsafe_allow_html=True
-            )
-            del_col1, del_col2 = st.columns([1, 1])
-            with del_col1:
-                if st.button("✕ Confirm Delete", use_container_width=True, key="confirm_delete_btn"):
-                    st.session_state.pending_delete = {
-                        "timestamp":       str(selected_row_data.get("Timestamp", "")),
-                        "accessories_code": str(selected_row_data.get("Accessories Code", "")),
-                        "batch_size":      str(selected_row_data.get("Batch Size (kg)", "")),
-                    }
-                    st.rerun()
-            with del_col2:
-                if st.button("Cancel", use_container_width=True, key="cancel_delete_btn"):
-                    st.rerun()
-
-    # Execute pending deletion
     if st.session_state.pending_delete:
         pd_data = st.session_state.pending_delete
         with st.spinner("Deleting log entry..."):
@@ -770,10 +703,7 @@ if not recent_logs_df.empty:
             )
         st.session_state.pending_delete = None
         load_recent_logs.clear()
-        if success:
-            st.toast("✓ Log entry deleted", icon="🗑️")
-        else:
-            st.error("Could not find that row to delete — it may have already been removed.")
+        st.toast("✓ Entry deleted" if success else "⚠ Row not found", icon="🗑️" if success else "⚠️")
         st.rerun()
 
 else:
