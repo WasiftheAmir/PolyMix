@@ -3,10 +3,13 @@
 Internal tool for factory-floor recipe mixing.
 
 ## What it does
-- Search WIP parts by **Accessories Name** or **Accessories Code**
-- Enter a batch size in kg
-- Get exact ingredient weights (3 decimal places) for every component
-- Confirm the batch to log it to the **Batch Log** sheet on the same WIP_MASTERFILE Google Sheet
+- **Smart Search**: Multi-keyword, order-independent fuzzy search with built-in typo tolerance (via RapidFuzz) for part names, alongside exact-match Part Code search.
+- **Factory Tracking**: Seamlessly switch context between different factory locations (e.g., Narayanganj and N Poly), tracking batches to separate dedicated sheets.
+- **Recipe Calculator**: Input a target batch weight (kg) to instantly calculate exact ingredient weights (to 3 decimal places).
+- **Interactive Recipe Editing**: Adjust ingredient percentages on the fly, add missing ingredients to a recipe, and monitor total percentage deviations before committing the batch. Features responsive horizontal and vertical (mobile-friendly) table layouts.
+- **Recent Logs & Deletions**: View the 10 most recent batch logs for the selected factory and selectively delete erroneous entries directly from the web interface.
+- **UI & Accessibility**: Built-in custom dark/light mode toggle to suit factory-floor environments.
+- **Automatic Logging**: Confirmed batches are instantly pushed to the respective factory's Batch Log tab in the connected Google Sheet.
 
 ---
 

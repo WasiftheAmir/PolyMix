@@ -530,11 +530,14 @@ if search_term.strip():
 
         corrected_tokens = []
         for token in raw_tokens:
-            match = process.extractOne(token, vocab_pool, score_cutoff=75)
-            if match:
-                corrected_tokens.append(match[0])
-            else:
+            if token in vocab_pool:
                 corrected_tokens.append(token)
+            else:
+                match = process.extractOne(token, vocab_pool, score_cutoff=75)
+                if match:
+                    corrected_tokens.append(match[0])
+                else:
+                    corrected_tokens.append(token)
 
         # AND filter: every token must appear somewhere in Accessories Name
         mask = pd.Series([True] * len(df), index=df.index)
