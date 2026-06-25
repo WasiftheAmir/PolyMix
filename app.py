@@ -152,28 +152,6 @@ st.markdown(f"""
     .summary-strip-label {{ font-size: 0.72rem; color: rgba(255,255,255,0.85); line-height: 1.1; }}
     .summary-strip-val   {{ font-size: 1.05rem; font-weight: 800; color: #fff; line-height: 1.2; }}
 
-    /* Dark mode toggle button — small and subtle */
-    div[data-testid="column"]:last-child .stButton > button {{
-        background: transparent !important;
-        border: 1px solid var(--border) !important;
-        color: var(--text-muted) !important;
-        font-size: 1.1rem !important;
-        height: 36px !important;
-        line-height: 36px !important;
-        width: 44px !important;
-        padding: 0 !important;
-        border-radius: 8px !important;
-        min-width: 0 !important;
-    }}
-    div[data-testid="column"]:last-child .stButton > button:hover {{
-        border-color: var(--accent) !important;
-        opacity: 1 !important;
-    }}
-    div[data-testid="column"]:last-child .stButton > button p {{
-        color: var(--text-muted) !important;
-        font-size: 1.1rem !important;
-        font-weight: normal !important;
-    }}
 
     [data-testid="stTextInput"] input,
     [data-testid="stNumberInput"] input {{
@@ -397,7 +375,9 @@ for key, default in [
         st.session_state[key] = default
 
 # ── Header ────────────────────────────────────────────────────────────────────
-hdr_col, toggle_col = st.columns([9, 1])
+# iOS toggle implemented as styled HTML checkbox — clicking it flips
+# a hidden st.checkbox which triggers a rerun and updates dark_mode.
+hdr_col, toggle_col = st.columns([8, 2])
 with hdr_col:
     st.markdown(
         '<div class="pm-title">'
@@ -407,8 +387,64 @@ with hdr_col:
         unsafe_allow_html=True
     )
 with toggle_col:
-    if st.button("☀️" if _dark else "🌙", key="dark_mode_toggle"):
-        st.session_state.dark_mode = not _dark
+    # Inject the iOS pill CSS
+    st.markdown(f"""
+    <style>
+    /* Hide the real checkbox */
+    div[data-testid="stCheckbox"] {{
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-top: 14px;
+    }}
+    div[data-testid="stCheckbox"] label {{
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+    }}
+    div[data-testid="stCheckbox"] label span:first-child {{
+        /* The actual toggle track */
+        display: inline-block;
+        width: 51px;
+        height: 31px;
+        border-radius: 999px;
+        background: {"#e8336d" if _dark else "#e5e7eb"};
+        position: relative;
+        transition: background 0.25s ease;
+        flex-shrink: 0;
+    }}
+    div[data-testid="stCheckbox"] input[type="checkbox"] {{
+        display: none;
+    }}
+    /* The knob */
+    div[data-testid="stCheckbox"] label span:first-child::after {{
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: {"28px" if _dark else "2px"};
+        width: 27px;
+        height: 27px;
+        border-radius: 50%;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+        transition: left 0.25s ease;
+    }}
+    /* Hide the checkbox label text */
+    div[data-testid="stCheckbox"] label p {{
+        display: none !important;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+
+    toggled = st.checkbox(
+        "dark",
+        value=_dark,
+        key="dark_mode_checkbox",
+        label_visibility="collapsed"
+    )
+    if toggled != _dark:
+        st.session_state.dark_mode = toggled
         st.rerun()
 
 st.markdown(
