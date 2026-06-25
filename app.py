@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
 import gspread
+import re
 from google.oauth2.service_account import Credentials
+from rapidfuzz import process
 from datetime import datetime, timezone, timedelta
-
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="PolyMix",
@@ -296,6 +297,16 @@ def load_data():
     df["Accessories Name"] = df["Accessories Name"].astype(str).str.strip()
     return df
 
+@st.cache_data(ttl=120, show_spinner=False)
+def get_vocabulary_pool(df):
+    vocab = set()
+    for name in df["Accessories Name"].dropna():
+        clean_name = re.sub(r'[^\w\s]', ' ', str(name).lower())
+        for word in clean_name.split():
+            if word:
+                vocab.add(word)
+    return list(vocab)
+
 def ensure_log_sheet(log_sheet_name):
     gc = get_gc()
     sh = gc.open_by_key(SPREADSHEET_ID)
@@ -489,15 +500,18 @@ with st.spinner("Loading masterfile..."):
 st.markdown(
     '<div class="pm-card">'
     '<div class="pm-card-title">Setup Batch</div>'
-    '<div class="pm-card-guidance">Search by product name to find the right part, or search by code directly. '
-    '<span class="pm-card-example">(e.g. Gold WD Frame or 3108000537)</span></div>',
+    '<div class="pm-card-guidance">'
+    'Type one or more keywords to search accessories — all words must match (any order). '
+    'Switch to Code to search by part number. '
+    '<span class="pm-card-example">(e.g. "drawer white" matches "White Wardrobe Drawer")</span>'
+    '</div>',
     unsafe_allow_html=True
 )
 
 col1, col2 = st.columns([1, 1])
 with col1:
     search_term = st.text_input(
-        "Search", placeholder="Search Name or Code...",
+        "Search", placeholder="e.g. drawer white  or  3108000537",
         label_visibility="collapsed", key="search_input"
     )
     search_mode = st.radio(
@@ -508,35 +522,36 @@ with col1:
 batch_kg = 50.0
 
 if search_term.strip():
-    term = search_term.strip().lower()
-
     if search_mode == "Name":
-        # ── Step 1: find matching product Names ──────────────────────────────
-        matched_names = sorted(
-            df[df["Name"].str.lower().str.contains(term, na=False)]["Name"]
-            .dropna().unique().tolist()
-        )
+        vocab_pool = get_vocabulary_pool(df)
+        
+        # Split into tokens, filter empty strings from extra spaces
+        raw_tokens = [t for t in search_term.strip().lower().split() if t]
 
-        if matched_names:
+        corrected_tokens = []
+        for token in raw_tokens:
+            match = process.extractOne(token, vocab_pool, score_cutoff=75)
+            if match:
+                corrected_tokens.append(match[0])
+            else:
+                corrected_tokens.append(token)
+
+        # AND filter: every token must appear somewhere in Accessories Name
+        mask = pd.Series([True] * len(df), index=df.index)
+        for token in corrected_tokens:
+            mask &= df["Accessories Name"].str.lower().str.contains(token, na=False)
+
+        results = df[mask].drop_duplicates(subset=["Accessories Code", "Accessories Name"])
+
+        if not results.empty:
+            options = {
+                f"{r['Accessories Name']} · {r['Accessories Code']} · {r['Base Color']}": r.to_dict()
+                for _, r in results.iterrows()
+            }
             with col2:
-                selected_name = st.selectbox(
-                    "Product", matched_names, label_visibility="collapsed",
-                    key="product_selectbox"
-                )
-
-            # ── Step 2: show all accessories for that Name ───────────────────
-            acc_results = df[df["Name"] == selected_name].drop_duplicates(
-                subset=["Accessories Code", "Accessories Name"]
-            )
-
-            if not acc_results.empty:
-                options = {
-                    f"{r['Accessories Name']} · {r['Accessories Code']} · {r['Base Color']}": r.to_dict()
-                    for _, r in acc_results.iterrows()
-                }
                 selected_label = st.selectbox(
-                    "Accessory", list(options.keys()), label_visibility="collapsed",
-                    key="accessory_selectbox"
+                    "Part", list(options.keys()), label_visibility="collapsed",
+                    key="name_result_selectbox"
                 )
                 final_row = options[selected_label]
                 st.session_state.selected_row = final_row
@@ -547,17 +562,14 @@ if search_term.strip():
                     )
                 else:
                     st.markdown('<div class="pm-warn">⚠ No recipe data for this part.</div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="pm-warn">⚠ No accessories found for this product.</div>', unsafe_allow_html=True)
-                st.session_state.selected_row      = None
-                st.session_state.current_part_code = None
         else:
             with col2:
-                st.markdown('<div class="pm-warn">⚠ No products found. Try a different search term.</div>', unsafe_allow_html=True)
+                st.markdown('<div class="pm-warn">⚠ No parts found. Try different keywords.</div>', unsafe_allow_html=True)
             st.session_state.selected_row      = None
             st.session_state.current_part_code = None
 
-    else:  # Code search — unchanged behaviour
+    else:  # Code search
+        term = search_term.strip().lower()
         results = df[df["Accessories Code"].str.lower().str.contains(term, na=False)].drop_duplicates(
             subset=["Accessories Code", "Accessories Name"])
 
@@ -567,7 +579,10 @@ if search_term.strip():
                 for _, r in results.iterrows()
             }
             with col2:
-                selected_label = st.selectbox("Part", list(options.keys()), label_visibility="collapsed")
+                selected_label = st.selectbox(
+                    "Part", list(options.keys()), label_visibility="collapsed",
+                    key="code_result_selectbox"
+                )
                 final_row = options[selected_label]
                 st.session_state.selected_row = final_row
                 if has_recipe(final_row):
@@ -579,7 +594,7 @@ if search_term.strip():
                     st.markdown('<div class="pm-warn">⚠ No recipe data for this part.</div>', unsafe_allow_html=True)
         else:
             with col2:
-                st.markdown('<div class="pm-warn">⚠ No parts found. Try a different search term.</div>', unsafe_allow_html=True)
+                st.markdown('<div class="pm-warn">⚠ No parts found. Try a different code.</div>', unsafe_allow_html=True)
             st.session_state.selected_row      = None
             st.session_state.current_part_code = None
 else:
@@ -587,6 +602,7 @@ else:
     st.session_state.current_part_code = None
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 # ── RECIPE BREAKDOWN & LOGGING ────────────────────────────────────────────────
 if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
