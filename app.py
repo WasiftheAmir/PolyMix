@@ -68,7 +68,7 @@ st.markdown(f"""
         color: var(--text-main);
         font-family: 'Segoe UI', sans-serif;
     }}
-    [data-testid="stHeader"] {{ background: transparent; }}
+    [data-testid="stHeader"] {{ background: transparent; pointer-events: none; }}
     [data-testid="stSidebar"] {{ display: none; }}
     [data-testid="block-container"] {{
         padding-top: 1.2rem !important;
@@ -375,77 +375,78 @@ for key, default in [
         st.session_state[key] = default
 
 # ── Header ────────────────────────────────────────────────────────────────────
-# iOS toggle implemented as styled HTML checkbox — clicking it flips
-# a hidden st.checkbox which triggers a rerun and updates dark_mode.
-hdr_col, toggle_col = st.columns([8, 2])
-with hdr_col:
-    st.markdown(
-        '<div class="pm-title">'
-        '<span style="color:var(--accent);">Poly</span>'
-        '<span style="color:var(--text-main);">Mix</span>'
-        '</div>',
-        unsafe_allow_html=True
-    )
-with toggle_col:
-    # Inject the iOS pill CSS
-    st.markdown(f"""
-    <style>
-    /* Hide the real checkbox */
-    div[data-testid="stCheckbox"] {{
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        padding-top: 14px;
-    }}
-    div[data-testid="stCheckbox"] label {{
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-    }}
-    div[data-testid="stCheckbox"] label span:first-child {{
-        /* The actual toggle track */
-        display: inline-block;
-        width: 51px;
-        height: 31px;
-        border-radius: 999px;
-        background: {"#e8336d" if _dark else "#e5e7eb"};
-        position: relative;
-        transition: background 0.25s ease;
-        flex-shrink: 0;
-    }}
-    div[data-testid="stCheckbox"] input[type="checkbox"] {{
-        display: none;
-    }}
-    /* The knob */
-    div[data-testid="stCheckbox"] label span:first-child::after {{
-        content: '';
-        position: absolute;
-        top: 2px;
-        left: {"28px" if _dark else "2px"};
-        width: 27px;
-        height: 27px;
-        border-radius: 50%;
-        background: white;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.25);
-        transition: left 0.25s ease;
-    }}
-    /* Hide the checkbox label text */
-    div[data-testid="stCheckbox"] label p {{
-        display: none !important;
-    }}
-    </style>
-    """, unsafe_allow_html=True)
+# Title rendered full-width; toggle fixed to viewport top-right.
+st.markdown(
+    '<div class="pm-title">'
+    '<span style="color:var(--accent);">Poly</span>'
+    '<span style="color:var(--text-main);">Mix</span>'
+    '</div>',
+    unsafe_allow_html=True
+)
 
-    toggled = st.checkbox(
-        "dark",
-        value=_dark,
-        key="dark_mode_checkbox",
-        label_visibility="collapsed"
-    )
-    if toggled != _dark:
-        st.session_state.dark_mode = toggled
-        st.rerun()
+st.markdown(f"""
+<style>
+/* Fix toggle to the top-left of the viewport — avoids Streamlit's deploy button */
+div[data-testid="stCheckbox"] {{
+    position: fixed;
+    top: 1.2rem;
+    left: 1.5rem;
+    z-index: 99999999;
+    margin: 0 !important;
+    padding: 0 !important;
+    pointer-events: auto !important;
+}}
+div[data-testid="stCheckbox"] label {{
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    margin: 0;
+    padding: 0;
+}}
+/* Toggle track */
+div[data-testid="stCheckbox"] label span:first-child {{
+    display: inline-block;
+    width: 51px;
+    height: 31px;
+    border-radius: 999px;
+    background: {"#e8336d" if _dark else "#e5e7eb"};
+    position: relative;
+    transition: background 0.25s ease;
+    flex-shrink: 0;
+}}
+div[data-testid="stCheckbox"] input[type="checkbox"] {{
+    display: none;
+}}
+/* Knob */
+div[data-testid="stCheckbox"] label span:first-child::after {{
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: {"23px" if _dark else "3px"};
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+    transition: left 0.25s ease;
+}}
+/* Hide label text */
+div[data-testid="stCheckbox"] label p {{
+    display: none !important;
+}}
+</style>
+""", unsafe_allow_html=True)
+
+toggled = st.checkbox(
+    "dark",
+    value=_dark,
+    key="dark_mode_checkbox",
+    label_visibility="collapsed"
+)
+if toggled != _dark:
+    st.session_state.dark_mode = toggled
+    st.rerun()
+
 
 st.markdown(
     '<div class="pm-subtitle">ACI Premio Plastics · Batch Recipe Calculator · '
@@ -488,8 +489,8 @@ with st.spinner("Loading masterfile..."):
 st.markdown(
     '<div class="pm-card">'
     '<div class="pm-card-title">Setup Batch</div>'
-    '<div class="pm-card-guidance">Search the component masterfile by name or code, then set your target batch weight. '
-    '<span class="pm-card-example">(e.g. Gold WD Frame 5D or 3108000537)</span></div>',
+    '<div class="pm-card-guidance">Search by product name to find the right part, or search by code directly. '
+    '<span class="pm-card-example">(e.g. Gold WD Frame or 3108000537)</span></div>',
     unsafe_allow_html=True
 )
 
@@ -508,34 +509,79 @@ batch_kg = 50.0
 
 if search_term.strip():
     term = search_term.strip().lower()
+
     if search_mode == "Name":
-        results = df[df["Accessories Name"].str.lower().str.contains(term, na=False)].drop_duplicates(
-            subset=["Accessories Code", "Accessories Name"])
-    else:
+        # ── Step 1: find matching product Names ──────────────────────────────
+        matched_names = sorted(
+            df[df["Name"].str.lower().str.contains(term, na=False)]["Name"]
+            .dropna().unique().tolist()
+        )
+
+        if matched_names:
+            with col2:
+                selected_name = st.selectbox(
+                    "Product", matched_names, label_visibility="collapsed",
+                    key="product_selectbox"
+                )
+
+            # ── Step 2: show all accessories for that Name ───────────────────
+            acc_results = df[df["Name"] == selected_name].drop_duplicates(
+                subset=["Accessories Code", "Accessories Name"]
+            )
+
+            if not acc_results.empty:
+                options = {
+                    f"{r['Accessories Name']} · {r['Accessories Code']} · {r['Base Color']}": r.to_dict()
+                    for _, r in acc_results.iterrows()
+                }
+                selected_label = st.selectbox(
+                    "Accessory", list(options.keys()), label_visibility="collapsed",
+                    key="accessory_selectbox"
+                )
+                final_row = options[selected_label]
+                st.session_state.selected_row = final_row
+                if has_recipe(final_row):
+                    batch_kg = st.number_input(
+                        "Total amount (kg)", min_value=0.1, max_value=10000.0,
+                        value=50.0, step=0.5, format="%.1f"
+                    )
+                else:
+                    st.markdown('<div class="pm-warn">⚠ No recipe data for this part.</div>', unsafe_allow_html=True)
+            else:
+                st.markdown('<div class="pm-warn">⚠ No accessories found for this product.</div>', unsafe_allow_html=True)
+                st.session_state.selected_row      = None
+                st.session_state.current_part_code = None
+        else:
+            with col2:
+                st.markdown('<div class="pm-warn">⚠ No products found. Try a different search term.</div>', unsafe_allow_html=True)
+            st.session_state.selected_row      = None
+            st.session_state.current_part_code = None
+
+    else:  # Code search — unchanged behaviour
         results = df[df["Accessories Code"].str.lower().str.contains(term, na=False)].drop_duplicates(
             subset=["Accessories Code", "Accessories Name"])
 
-    if not results.empty:
-        options = {
-            f"{r['Accessories Name']} · {r['Accessories Code']} · {r['Base Color']}": r.to_dict()
-            for _, r in results.iterrows()
-        }
-        with col2:
-            selected_label = st.selectbox("Part", list(options.keys()), label_visibility="collapsed")
-            final_row = options[selected_label]
-            st.session_state.selected_row = final_row
-            if has_recipe(final_row):
-                batch_kg = st.number_input(
-                    "Total amount (kg)", min_value=0.1, max_value=10000.0,
-                    value=50.0, step=0.5, format="%.1f"
-                )
-            else:
-                st.markdown('<div class="pm-warn">⚠ No recipe data for this part.</div>', unsafe_allow_html=True)
-    else:
-        with col2:
-            st.markdown('<div class="pm-warn">⚠ No parts found. Try a different search term.</div>', unsafe_allow_html=True)
-        st.session_state.selected_row      = None
-        st.session_state.current_part_code = None
+        if not results.empty:
+            options = {
+                f"{r['Accessories Name']} · {r['Accessories Code']} · {r['Base Color']}": r.to_dict()
+                for _, r in results.iterrows()
+            }
+            with col2:
+                selected_label = st.selectbox("Part", list(options.keys()), label_visibility="collapsed")
+                final_row = options[selected_label]
+                st.session_state.selected_row = final_row
+                if has_recipe(final_row):
+                    batch_kg = st.number_input(
+                        "Total amount (kg)", min_value=0.1, max_value=10000.0,
+                        value=50.0, step=0.5, format="%.1f"
+                    )
+                else:
+                    st.markdown('<div class="pm-warn">⚠ No recipe data for this part.</div>', unsafe_allow_html=True)
+        else:
+            with col2:
+                st.markdown('<div class="pm-warn">⚠ No parts found. Try a different search term.</div>', unsafe_allow_html=True)
+            st.session_state.selected_row      = None
+            st.session_state.current_part_code = None
 else:
     st.session_state.selected_row      = None
     st.session_state.current_part_code = None
