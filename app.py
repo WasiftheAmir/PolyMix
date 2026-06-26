@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import gspread
 import re
+import humanize
+import json
+from streamlit_javascript import st_javascript
 from google.oauth2.service_account import Credentials
 from rapidfuzz import process
 from datetime import datetime, timezone, timedelta
@@ -13,8 +16,26 @@ st.set_page_config(
 )
 
 # ── Dark mode must be read BEFORE CSS is rendered ────────────────────────────
+# ── LocalStorage Initialization ──────────────────────────────────────────────
+js_data = st_javascript("JSON.stringify({dark_mode: localStorage.getItem('pm_dark_mode') || 'false', search: localStorage.getItem('pm_search') || '', batch_kg: localStorage.getItem('pm_batch_kg') || ''})")
+
+if js_data and js_data != 0:
+    if not st.session_state.get("storage_synced", False):
+        try:
+            data = json.loads(js_data)
+            is_dark = data.get("dark_mode") == "true"
+            st.session_state.dark_mode = is_dark
+            st.session_state.dark_mode_checkbox = is_dark
+            if data.get("search"): st.session_state.search_input = data.get("search")
+            if data.get("batch_kg"): st.session_state.batch_kg = float(data.get("batch_kg"))
+        except Exception:
+            pass
+        st.session_state.storage_synced = True
+
 if "dark_mode" not in st.session_state:
     st.session_state.dark_mode = False
+
+st.session_state.setdefault("batch_kg", 50.0)
 
 _dark = st.session_state.dark_mode
 
@@ -448,15 +469,15 @@ div[data-testid="stCheckbox"] label p {{
 </style>
 """, unsafe_allow_html=True)
 
-toggled = st.checkbox(
+def toggle_dark():
+    st.session_state.dark_mode = st.session_state.dark_mode_checkbox
+
+st.checkbox(
     "dark",
-    value=_dark,
     key="dark_mode_checkbox",
-    label_visibility="collapsed"
+    label_visibility="collapsed",
+    on_change=toggle_dark
 )
-if toggled != _dark:
-    st.session_state.dark_mode = toggled
-    st.rerun()
 
 
 st.markdown(
@@ -519,7 +540,7 @@ with col1:
         horizontal=True, label_visibility="collapsed"
     )
 
-batch_kg = 50.0
+batch_kg = st.session_state.batch_kg
 
 if search_term.strip():
     if search_mode == "Name":
@@ -561,7 +582,7 @@ if search_term.strip():
                 if has_recipe(final_row):
                     batch_kg = st.number_input(
                         "Total amount (kg)", min_value=0.1, max_value=10000.0,
-                        value=50.0, step=0.5, format="%.1f"
+                        step=0.5, format="%.1f", key="batch_kg"
                     )
                 else:
                     st.markdown('<div class="pm-warn">⚠ No recipe data for this part.</div>', unsafe_allow_html=True)
@@ -591,7 +612,7 @@ if search_term.strip():
                 if has_recipe(final_row):
                     batch_kg = st.number_input(
                         "Total amount (kg)", min_value=0.1, max_value=10000.0,
-                        value=50.0, step=0.5, format="%.1f"
+                        step=0.5, format="%.1f", key="batch_kg"
                     )
                 else:
                     st.markdown('<div class="pm-warn">⚠ No recipe data for this part.</div>', unsafe_allow_html=True)
@@ -731,6 +752,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
                     st.session_state.batch_confirmed = True
                     load_recent_logs.clear()
                     st.toast("✓ Batch logged successfully", icon="✅")
+                    st_javascript("localStorage.removeItem('pm_search'); localStorage.removeItem('pm_batch_kg');")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Failed to log batch: {e}")
@@ -759,6 +781,19 @@ st.markdown(
 recent_logs_df = load_recent_logs(ACTIVE_LOG_SHEET)
 
 if not recent_logs_df.empty:
+    if "Timestamp" in recent_logs_df.columns:
+        now = datetime.now(BD_TZ)
+        def calc_time_ago(ts_str):
+            try:
+                ts = datetime.strptime(str(ts_str).strip(), "%Y-%m-%d %H:%M:%S").replace(tzinfo=BD_TZ)
+                return humanize.naturaltime(now - ts)
+            except Exception:
+                return ""
+        
+        # Insert "Time Ago" right after "Timestamp"
+        ts_idx = recent_logs_df.columns.get_loc("Timestamp")
+        recent_logs_df.insert(ts_idx + 1, "Time Ago", recent_logs_df["Timestamp"].apply(calc_time_ago))
+
     cols_to_show = [c for c in recent_logs_df.columns
                     if not recent_logs_df[c].astype(str).str.strip().eq('').all()]
     display_df = recent_logs_df[cols_to_show].copy()
@@ -811,3 +846,10 @@ else:
     st.caption(f"No batch entries found in {selected_factory} log yet.")
 
 st.markdown('</div>', unsafe_allow_html=True)
+
+# ── Safe State Persistence ───────────────────────────────────────────────────
+if st.session_state.get("storage_synced", False):
+    st_javascript(f"localStorage.setItem('pm_dark_mode', '{str(st.session_state.dark_mode).lower()}');")
+    search_val = str(st.session_state.get('search_input', '')).replace("'", "\\'")
+    st_javascript(f"localStorage.setItem('pm_search', '{search_val}');")
+    st_javascript(f"localStorage.setItem('pm_batch_kg', '{st.session_state.get('batch_kg', '')}');")
