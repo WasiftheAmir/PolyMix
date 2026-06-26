@@ -1,0 +1,22 @@
+{
+    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultPackageManager": "ms-python.python:conda",
+    "python.defaultInterpreterPath": "/Users/wasif-amir/anaconda3/bin/python",
+    "python.analysis.extraPaths": [
+        "/Users/wasif-amir/anaconda3/lib/python3.11/site-packages"
+    ],
+    "python.analysis.exclude": [
+        "/__pyrefly_virtual__/**",
+        "**/__pyrefly_virtual__/**"
+    ],
+    "python.analysis.ignore": [
+        "/__pyrefly_virtual__/**",
+        "**/__pyrefly_virtual__/**"
+    ],
+    "files.exclude": {
+        "/__pyrefly_virtual__/": true
+    },
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingModuleSource": "none"
+    }
+}

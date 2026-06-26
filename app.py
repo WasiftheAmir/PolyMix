@@ -12,7 +12,7 @@ from datetime import datetime, timezone, timedelta
 st.set_page_config(
     page_title="PolyMix",
     page_icon="🧪",
-    layout="centered",
+    layout="wide",
 )
 
 # ── Dark mode must be read BEFORE CSS is rendered ────────────────────────────
@@ -53,8 +53,8 @@ THEME = {
     "success_text":  "#166534",
 }
 
-bg_app        = "#0d0d0d" if _dark else "#ffffff"
-bg_card       = "#1a1a1a" if _dark else "#ffffff"
+bg_app        = "#08111c" if _dark else "#ffffff"
+bg_card       = "#08111c" if _dark else "#ffffff"
 bg_neutral    = "#2a2a2a" if _dark else "#f0f0f0"
 text_lightness = "90%"    if _dark else "11%"
 border_l      = "20%"     if _dark else "90%"
@@ -90,12 +90,20 @@ st.markdown(f"""
         color: var(--text-main);
         font-family: 'Segoe UI', sans-serif;
     }}
-    [data-testid="stHeader"] {{ background: transparent; pointer-events: none; }}
+    [data-testid="stHeader"] {{ display: none !important; }}
     [data-testid="stSidebar"] {{ display: none; }}
     [data-testid="block-container"] {{
-        padding-top: 1.2rem !important;
+        padding-top: 0rem !important;
         padding-bottom: 1rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        max-width: 100% !important;
         background-color: var(--bg-primary) !important;
+    }}
+    [data-testid="stAppViewBlockContainer"] {{
+        max-width: 100% !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
     }}
     section[data-testid="stMain"] {{ background-color: var(--bg-primary) !important; }}
 
