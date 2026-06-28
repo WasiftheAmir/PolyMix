@@ -1,9 +1,9 @@
 {
-    "python-envs.defaultEnvManager": "ms-python.python:conda",
-    "python-envs.defaultPackageManager": "ms-python.python:conda",
-    "python.defaultInterpreterPath": "/Users/wasif-amir/anaconda3/bin/python",
+    "python-envs.defaultEnvManager": "ms-python.python:venv",
+    "python-envs.defaultPackageManager": "ms-python.python:pip",
+    "python.defaultInterpreterPath": "/Users/wasif-amir/PolyMix/.venv/bin/python",
     "python.analysis.extraPaths": [
-        "/Users/wasif-amir/anaconda3/lib/python3.11/site-packages"
+        "/Users/wasif-amir/PolyMix/.venv/lib/python3.10/site-packages"
     ],
     "python.analysis.exclude": [
         "/__pyrefly_virtual__/**",
@@ -17,6 +17,11 @@
         "/__pyrefly_virtual__/": true
     },
     "python.analysis.diagnosticSeverityOverrides": {
-        "reportMissingModuleSource": "none"
-    }
+        "reportMissingModuleSource": "none",
+        "reportMissingImports": "none"
+    },
+    "pyrefly.pythonInterpreter": "/Users/wasif-amir/PolyMix/.venv/bin/python",
+    "pyrefly.extraPaths": [
+        "/Users/wasif-amir/PolyMix/.venv/lib/python3.10/site-packages"
+    ]
 }

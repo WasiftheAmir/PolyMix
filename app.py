@@ -343,7 +343,7 @@ def ensure_log_sheet(log_sheet_name):
         ws = sh.worksheet(log_sheet_name)
     except gspread.exceptions.WorksheetNotFound:
         ws = sh.add_worksheet(title=log_sheet_name, rows=1000, cols=35)
-        ws.append_row(LOG_HEADERS, value_input_option="USER_ENTERED")
+        ws.append_row(LOG_HEADERS, value_input_option=gspread.utils.ValueInputOption.user_entered)
     return ws
 
 def log_batch(row_data, batch_kg, ingredient_kgs, factory_label, log_sheet_name):
@@ -359,7 +359,7 @@ def log_batch(row_data, batch_kg, ingredient_kgs, factory_label, log_sheet_name)
     ]
     for col in INGREDIENT_COLS:
         log_row.append(round(ingredient_kgs.get(col, 0), 3) if ingredient_kgs.get(col, 0) > 0 else "")
-    ws.append_row(log_row, value_input_option="USER_ENTERED")
+    ws.append_row(log_row, value_input_option=gspread.utils.ValueInputOption.user_entered)
 
 @st.cache_data(ttl=30, show_spinner=False)
 def load_recent_logs(log_sheet_name: str):
@@ -370,7 +370,19 @@ def load_recent_logs(log_sheet_name: str):
         records = ws.get_all_records()
         if not records:
             return pd.DataFrame()
-        return pd.DataFrame(records).iloc[::-1].head(10).reset_index(drop=True)
+        df = pd.DataFrame(records).iloc[::-1].head(10).reset_index(drop=True)
+        if "Timestamp" in df.columns:
+            now = datetime.now(BD_TZ)
+            def calc_time_ago(ts_str):
+                try:
+                    ts = datetime.strptime(str(ts_str).strip(), "%Y-%m-%d %H:%M:%S").replace(tzinfo=BD_TZ)
+                    return humanize.naturaltime(now - ts)
+                except Exception:
+                    return ""
+            ts_idx = df.columns.get_loc("Timestamp")
+            insert_at = ts_idx if isinstance(ts_idx, int) else int(str(ts_idx))
+            df.insert(insert_at + 1, "Time Ago", df["Timestamp"].apply(calc_time_ago))
+        return df
     except Exception:
         return pd.DataFrame()
 
@@ -504,7 +516,7 @@ with loc_col1:
 with loc_col2:
     st.markdown(
         f'<div style="font-size:0.78rem;color:var(--text-muted);padding-top:8px;">'
-        f'Logging to: <strong style="color:var(--accent);">{FACTORY_OPTIONS[selected_factory]}</strong></div>',
+        f'Logging to: <strong style="color:var(--accent);">{FACTORY_OPTIONS.get(selected_factory or "", "")}</strong></div>',
         unsafe_allow_html=True
     )
 
@@ -515,7 +527,7 @@ if selected_factory != st.session_state.factory:
     load_recent_logs.clear()
 
 st.markdown("<hr style='margin:8px 0 14px;border-color:var(--border);'>", unsafe_allow_html=True)
-ACTIVE_LOG_SHEET = FACTORY_OPTIONS[selected_factory]
+ACTIVE_LOG_SHEET = FACTORY_OPTIONS.get(selected_factory or "", "")
 
 # ── Load masterfile ───────────────────────────────────────────────────────────
 with st.spinner("Loading masterfile..."):
@@ -573,7 +585,7 @@ if search_term.strip():
         for token in corrected_tokens:
             mask &= df["Accessories Name"].str.lower().str.contains(token, na=False)
 
-        results = df[mask].drop_duplicates(subset=["Accessories Code", "Accessories Name"])
+        results = df[mask].drop_duplicates(subset=["Accessories Code", "Accessories Name"])  # pyrefly: ignore[no-matching-overload]
 
         if not results.empty:
             options = {
@@ -585,15 +597,16 @@ if search_term.strip():
                     "Part", list(options.keys()), label_visibility="collapsed",
                     key="name_result_selectbox"
                 )
-                final_row = options[selected_label]
-                st.session_state.selected_row = final_row
-                if has_recipe(final_row):
-                    batch_kg = st.number_input(
-                        "Total amount (kg)", min_value=0.1, max_value=10000.0,
-                        step=0.5, format="%.1f", key="batch_kg"
-                    )
-                else:
-                    st.markdown('<div class="pm-warn">⚠ No recipe data for this part.</div>', unsafe_allow_html=True)
+                if selected_label is not None:
+                    final_row = options[selected_label]
+                    st.session_state.selected_row = final_row
+                    if has_recipe(final_row):
+                        batch_kg = st.number_input(
+                            "Total amount (kg)", min_value=0.1, max_value=10000.0,
+                            step=0.5, format="%.1f", key="batch_kg"
+                        )
+                    else:
+                        st.markdown('<div class="pm-warn">⚠ No recipe data for this part.</div>', unsafe_allow_html=True)
         else:
             with col2:
                 st.markdown('<div class="pm-warn">⚠ No parts found. Try different keywords.</div>', unsafe_allow_html=True)
@@ -602,7 +615,7 @@ if search_term.strip():
 
     else:  # Code search
         term = search_term.strip().lower()
-        results = df[df["Accessories Code"].str.lower().str.contains(term, na=False)].drop_duplicates(
+        results = pd.DataFrame(df[df["Accessories Code"].str.lower().str.contains(term, na=False)]).drop_duplicates(
             subset=["Accessories Code", "Accessories Name"])
 
         if not results.empty:
@@ -615,15 +628,16 @@ if search_term.strip():
                     "Part", list(options.keys()), label_visibility="collapsed",
                     key="code_result_selectbox"
                 )
-                final_row = options[selected_label]
-                st.session_state.selected_row = final_row
-                if has_recipe(final_row):
-                    batch_kg = st.number_input(
-                        "Total amount (kg)", min_value=0.1, max_value=10000.0,
-                        step=0.5, format="%.1f", key="batch_kg"
-                    )
-                else:
-                    st.markdown('<div class="pm-warn">⚠ No recipe data for this part.</div>', unsafe_allow_html=True)
+                if selected_label is not None:
+                    final_row = options[selected_label]
+                    st.session_state.selected_row = final_row
+                    if has_recipe(final_row):
+                        batch_kg = st.number_input(
+                            "Total amount (kg)", min_value=0.1, max_value=10000.0,
+                            step=0.5, format="%.1f", key="batch_kg"
+                        )
+                    else:
+                        st.markdown('<div class="pm-warn">⚠ No recipe data for this part.</div>', unsafe_allow_html=True)
         else:
             with col2:
                 st.markdown('<div class="pm-warn">⚠ No parts found. Try a different code.</div>', unsafe_allow_html=True)
@@ -693,7 +707,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
         }
 
     editor_key = f"recipe_editor_{part_code}_{hash((tuple(sorted(pct_values.items())), batch_kg, tuple(active_cols), is_vertical))}"
-    edited_df  = st.data_editor(combined_df, use_container_width=True, column_config=column_config, key=editor_key)
+    edited_df  = st.data_editor(combined_df, width="stretch", column_config=column_config, key=editor_key)
 
     new_pct_values = {}
     changed = False
@@ -723,7 +737,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
                 label_visibility="collapsed", key=f"add_ing_{part_code}"
             )
         with add_c2:
-            if st.button("+ Add", use_container_width=True, key=f"add_ing_btn_{part_code}"):
+            if st.button("+ Add", width="stretch", key=f"add_ing_btn_{part_code}"):
                 matching = next(c for c in remaining_cols if c.replace(" %", "") == new_ingredient)
                 st.session_state.active_cols.append(matching)
                 st.rerun()
@@ -753,7 +767,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
     with bot_col2:
         if not st.session_state.batch_confirmed:
             if st.button("Confirm & Log Batch", key="action_log_trigger",
-                         use_container_width=True, disabled=abs(pct_deviation) > 0.01):
+                         width="stretch", disabled=abs(pct_deviation) > 0.01):
                 try:
                     with st.spinner("Logging batch..."):
                         log_batch(row, batch_kg, ingredient_kgs, selected_factory, ACTIVE_LOG_SHEET)
@@ -765,7 +779,7 @@ if st.session_state.selected_row and has_recipe(st.session_state.selected_row):
                 except Exception as e:
                     st.error(f"Failed to log batch: {e}")
         else:
-            if st.button("Start New Batch", use_container_width=True):
+            if st.button("Start New Batch", width="stretch"):
                 st.session_state.batch_confirmed = False
                 st.rerun()
 
@@ -789,18 +803,6 @@ st.markdown(
 recent_logs_df = load_recent_logs(ACTIVE_LOG_SHEET)
 
 if not recent_logs_df.empty:
-    if "Timestamp" in recent_logs_df.columns:
-        now = datetime.now(BD_TZ)
-        def calc_time_ago(ts_str):
-            try:
-                ts = datetime.strptime(str(ts_str).strip(), "%Y-%m-%d %H:%M:%S").replace(tzinfo=BD_TZ)
-                return humanize.naturaltime(now - ts)
-            except Exception:
-                return ""
-        
-        # Insert "Time Ago" right after "Timestamp"
-        ts_idx = recent_logs_df.columns.get_loc("Timestamp")
-        recent_logs_df.insert(ts_idx + 1, "Time Ago", recent_logs_df["Timestamp"].apply(calc_time_ago))
 
     cols_to_show = [c for c in recent_logs_df.columns
                     if not recent_logs_df[c].astype(str).str.strip().eq('').all()]
@@ -808,7 +810,7 @@ if not recent_logs_df.empty:
     display_df.insert(0, "🗑 Select", False)
 
     edited_logs = st.data_editor(
-        display_df, use_container_width=True, hide_index=True,
+        display_df, width="stretch", hide_index=True,
         column_config={"🗑 Select": st.column_config.CheckboxColumn("🗑", width="small")},
         disabled=[c for c in display_df.columns if c != "🗑 Select"],
         key="logs_editor"
@@ -825,7 +827,7 @@ if not recent_logs_df.empty:
         )
         dc1, dc2 = st.columns([1, 1])
         with dc1:
-            if st.button("✕ Confirm Delete", use_container_width=True, key="confirm_delete_btn"):
+            if st.button("✕ Confirm Delete", width="stretch", key="confirm_delete_btn"):
                 st.session_state.pending_delete = {
                     "timestamp":        str(r.get("Timestamp", "")),
                     "accessories_code": str(r.get("Accessories Code", "")),
@@ -833,7 +835,7 @@ if not recent_logs_df.empty:
                 }
                 st.rerun()
         with dc2:
-            if st.button("Cancel", use_container_width=True, key="cancel_delete_btn"):
+            if st.button("Cancel", width="stretch", key="cancel_delete_btn"):
                 st.rerun()
 
     if st.session_state.pending_delete:

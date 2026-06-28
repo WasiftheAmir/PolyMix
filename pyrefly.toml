@@ -1,0 +1,27 @@
+# Pyrefly configuration for PolyMix
+# Docs: https://pyrefly.org/en/docs/configuration/
+
+python-interpreter = "/Users/wasif-amir/PolyMix/.venv/bin/python"
+
+python-version = "3.10"
+
+# Library search paths — covers all imports in app.py:
+#   streamlit, pandas, gspread, humanize, rapidfuzz,
+#   streamlit_javascript, google-auth (google.oauth2)
+#   plus stdlib (re, json, datetime) which the interpreter locates automatically
+search-path = [
+    "/Users/wasif-amir/PolyMix/.venv/lib/python3.10/site-packages",
+]
+
+# Only analyse the actual project source files
+project-includes = [
+    "app.py",
+    "**/*.py",
+]
+
+# Exclude pyrefly's own internal virtual filesystem and the venv itself
+project-excludes = [
+    "**/__pyrefly_virtual__/**",
+    ".venv/**",
+    ".conda/**",
+]
